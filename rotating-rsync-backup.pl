@@ -149,6 +149,7 @@ my $rsyncCmdline =  "$rsyncCmd "
                     . (($remoteSources || $remoteTarget) ? " $sshParameter " : "")
                     . ($CONFIG{'RELATIVE'} ? " -R " : "")
                     . " --delete --no-perms --no-owner --no-group "
+                    . ($CONFIG{'CHMOD'} ? " --chmod=" . $CONFIG{'CHMOD'} . " " : "")
                     . ""; # Cosmetic
 
 # --link-dest must be relative to the TARGET FOLDER. It does not take user:host@ before the relative path, but figures that out itself
