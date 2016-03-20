@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v0.2
+# rotating-rsync-backup v1.0
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -8,7 +8,7 @@
 # folders are rotated, with a configurable number of daily/weekly/monthly backup folders
 # being kept. Hardlinks are used where possible.
 #
-# Copyright (c) 2014-2015 William Hefter <william@whefter.de>
+# Copyright (c) 2014-2016 William Hefter <william@whefter.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -104,6 +104,7 @@ my $thisBackupName      = time2str( $backupFormat, time() );
 # Makes about 12 calls. If this proves to be very slow we can always aggregate commands, though that would
 # potentially lead to very long commandlines.
 my $remoteTarget        = $CONFIG{'TARGET_HOST'} ? 1 : 0;
+# This is the call to SSH made for FS manipulations on the remote machine (not rsync's -e parameter)
 my $sshCall             =   "$sshCmd "
                             . ($CONFIG{'SSH_IDENTITY'}  ? '-i "' . $CONFIG{'SSH_IDENTITY'}  . '"' : '') . ' '
                             . ($CONFIG{'SSH_PORT'}      ? '-p "' . $CONFIG{'SSH_PORT'}      . '"' : '') . ' '
@@ -134,6 +135,7 @@ for my $i (0 .. scalar(@{$CONFIG{'SOURCE'}})) {
     $sourceCmdline .=  " \"" . ($host ? ($user ? $user . '@' : '') . $host . ':' : '') . $source . "\" ";
 }
 
+# This is for rsync's -e parameter
 my $sshParameter = "-ze 'ssh";
 if ( $CONFIG{'SSH_IDENTITY'} ) {
     $sshParameter .= ' -i "' . $CONFIG{'SSH_IDENTITY'} . '" ';
@@ -149,7 +151,7 @@ my $rsyncCmdline =  "$rsyncCmd "
                     . (($remoteSources || $remoteTarget) ? " $sshParameter " : "")
                     . ($CONFIG{'RELATIVE'} ? " -R " : "")
                     . " --delete --no-perms --no-owner --no-group "
-                    . ($CONFIG{'CHMOD'} ? " --chmod=" . $CONFIG{'CHMOD'} . " " : "")
+                    . ($CONFIG{'RSYNC_PARAMS'} ? " " . $CONFIG{'RSYNC_PARAMS'} . " " : "")
                     . ""; # Cosmetic
 
 # --link-dest must be relative to the TARGET FOLDER. It does not take user:host@ before the relative path, but figures that out itself
