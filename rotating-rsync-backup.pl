@@ -136,7 +136,7 @@ for my $i (0 .. scalar(@{$CONFIG{'SOURCE'}})) {
 }
 
 # This is for rsync's -e parameter
-my $sshParameter = "-ze 'ssh";
+my $sshParameter = "-e 'ssh";
 if ( $CONFIG{'SSH_IDENTITY'} ) {
     $sshParameter .= ' -i "' . $CONFIG{'SSH_IDENTITY'} . '" ';
 }
