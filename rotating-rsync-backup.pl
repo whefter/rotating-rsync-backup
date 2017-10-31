@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v1.0
+# rotating-rsync-backup v2.0
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -8,7 +8,7 @@
 # folders are rotated, with a configurable number of daily/weekly/monthly backup folders
 # being kept. Hardlinks are used where possible.
 #
-# Copyright (c) 2014-2016 William Hefter <william@whefter.de>
+# Copyright (c) 2014-2017 William Hefter <william@whefter.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,11 +28,14 @@ use warnings;
 use strict;
 
 use File::Copy;
-use File::Path 'remove_tree';
+use File::Path qw(remove_tree make_path);
 use Date::Parse;
 use Date::Format;
 use Data::Dumper;
 use B qw(svref_2object);
+use Net::Domain qw(hostname hostfqdn hostdomain domainname);
+
+logMsg(">>> rotating-rsync-backup starting up");
 
 # Clean path to rsync
 my $rsyncCmd = `which rsync`;
@@ -54,6 +57,9 @@ if ( !( -e $configFile ) || !( -r $configFile ) ) {
 
 # Enable debug "mode"?
 my $debugEnabled = $ARGV[1] || 0;
+
+# Log storage (used in the status mail)
+my @logMessages = ();
 
 # Read config from configuration file into hash
 my %CONFIG;
@@ -81,11 +87,17 @@ while (<CONFIG>) {
 }
 close CONFIG;
 
+my $profileName = ($CONFIG{'NAME'} ? $CONFIG{'NAME'} : $configFile);
+logMsg("Profile: $profileName");
+
 # print Dumper(\%CONFIG);
 
 my $backupFormat        = '%Y-%m-%d_%H-%M-%S';
 my $backupFormatPattern = '^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})$';
 my $thisBackupName      = time2str( $backupFormat, time() );
+
+logMsg("Creating backup $thisBackupName");
+
 
 # Whether a source is on a remote server is of no interest to us; rsync will take care of it.
 # Only remote targets are a concern, since we need to rotate backups on the target.
@@ -109,13 +121,30 @@ my $sshCall             =   "$sshCmd "
                             . ($CONFIG{'SSH_IDENTITY'}  ? '-i "' . $CONFIG{'SSH_IDENTITY'}  . '"' : '') . ' '
                             . ($CONFIG{'SSH_PORT'}      ? '-p "' . $CONFIG{'SSH_PORT'}      . '"' : '') . ' '
                             . $CONFIG{'TARGET_USER'} . '@' . $CONFIG{'TARGET_HOST'};
-
+# Mostly for display purposes
+my $remoteFolderPrefix  = ($CONFIG{'TARGET_HOST'} ? (($CONFIG{'TARGET_USER'} ? $CONFIG{'TARGET_USER'} . '@' : '') . $CONFIG{'TARGET_HOST'} . ':') : '');
 # Debug purposes
 my $cmd = "";
+
+
+# Ensure target folder exists (before listing it for the last backup name below)
+if ( $remoteTarget ) {
+    ensureRemoteFolderExists($CONFIG{'TARGET'});
+} else {
+    ensureLocalFolderExists($CONFIG{'TARGET'});
+}
+
 
 # Get name of last backup
 my @mainBackupList = listBackupsInPath($CONFIG{'TARGET'});
 my $lastBackupName = pop @mainBackupList;
+
+if ($lastBackupName) {
+    logMsg("Last backup name: $lastBackupName");
+} else {
+    logMsg("No existing backup detected.");
+}
+
 
 # Command building
 # Start with sources; this will tell us if we need to use SSH
@@ -132,8 +161,12 @@ for my $i (0 .. scalar(@{$CONFIG{'SOURCE'}})) {
         $remoteSources = 1;
     }
     
-    $sourceCmdline .=  " \"" . ($host ? ($user ? $user . '@' : '') . $host . ':' : '') . $source . "\" ";
+    my $rsyncSource = ($host ? ($user ? $user . '@' : '') . $host . ':' : '') . $source;
+    
+    logMsg('Add source folder: ' . $rsyncSource);
+    $sourceCmdline .=  " \"$rsyncSource\" ";
 }
+
 
 # This is for rsync's -e parameter
 my $sshParameter = "-e 'ssh";
@@ -145,14 +178,18 @@ if ( $CONFIG{'SSH_PORT'} ) {
 }
 $sshParameter .= "'";
 
-# Basic
+
+# Basic commandline
 my $rsyncCmdline =  "$rsyncCmd "
-                    . " -av "
+                    . " -a "
                     . (($remoteSources || $remoteTarget) ? " $sshParameter " : "")
-                    . ($CONFIG{'RELATIVE'} ? " -R " : "")
-                    . " --delete --no-perms --no-owner --no-group "
                     . ($CONFIG{'RSYNC_PARAMS'} ? " " . $CONFIG{'RSYNC_PARAMS'} . " " : "")
                     . ""; # Cosmetic
+
+
+# Add sources
+$rsyncCmdline .= $sourceCmdline;
+
 
 # --link-dest must be relative to the TARGET FOLDER. It does not take user:host@ before the relative path, but figures that out itself
 if ( $lastBackupName ) {
@@ -160,59 +197,79 @@ if ( $lastBackupName ) {
                     . ""; # Cosmetic
 }
 
-# Add sources
-$rsyncCmdline .= $sourceCmdline;
 
-# Add target
-$rsyncCmdline   .= " \"" . ($CONFIG{'TARGET_HOST'} ? ($CONFIG{'TARGET_USER'} ? $CONFIG{'TARGET_USER'} . '@' : '') . $CONFIG{'TARGET_HOST'} . ':' : '') . $CONFIG{'TARGET'} . "/$thisBackupName\" "
+# Add target, check for existence and create if necessary
+my $fullTargetFolder = $CONFIG{'TARGET'} . "/$thisBackupName";
+my $rsyncTarget =  $remoteFolderPrefix . $fullTargetFolder;
+
+logMsg('Target folder: ' . $rsyncTarget);
+if ( $remoteTarget ) {
+    ensureRemoteFolderExists($fullTargetFolder);
+} else {
+    ensureLocalFolderExists($fullTargetFolder);
+}
+
+$rsyncCmdline   .= " \"$rsyncTarget\" "
                 . ""; # Cosmetic
 
+
 # Execute rsync
-print "Executing rsync\n";
-debugOut($rsyncCmdline);
+logMsg('');
+logMsg(">> Executing rsync");
+logMsg($rsyncCmdline);
 system($rsyncCmdline);
+if ($? >> 8) {
+    failQuit('rsync exited with non-zero code.');
+}
+
+
+logMsg('');
+logMsg('>> Rotating backups');
 
 # Create rotation folders. Do this AFTER executing the main rsync command; this way, if for some reason the creation
 # fails (ssh error or something), at least we'll have the backup.
-if ( !$remoteTarget ) {
-    mkdir($CONFIG{'TARGET'} . "/$dailyFolder") if !( -d $CONFIG{'TARGET'} . "/$dailyFolder" );
-    mkdir($CONFIG{'TARGET'} . "/$weeklyFolder") if !( -d $CONFIG{'TARGET'} . "/$weeklyFolder" );
-    mkdir($CONFIG{'TARGET'} . "/$monthlyFolder") if !( -d $CONFIG{'TARGET'} . "/$monthlyFolder" );
+my $fullDailyFolder = $CONFIG{'TARGET'} . "/$dailyFolder";
+my $fullWeeklyFolder = $CONFIG{'TARGET'} . "/$weeklyFolder";
+my $fullMonthlyFolder = $CONFIG{'TARGET'} . "/$monthlyFolder";
+if ( $remoteTarget ) {
+    ensureRemoteFolderExists($fullDailyFolder);
+    ensureRemoteFolderExists($fullWeeklyFolder);
+    ensureRemoteFolderExists($fullMonthlyFolder);
 } else {
-    $cmd = $sshCall . " 'if [[ ! -d \"" . $CONFIG{'TARGET'} . '/' . $dailyFolder . "\" ]]; then mkdir -p \"" . $CONFIG{'TARGET'} . '/' . $dailyFolder . "\" ; fi'";
-    debugOut($cmd);
-    system($cmd);
-        # or die 'Failed to create ' . $CONFIG{'TARGET_USER'} . '@' . $CONFIG{'TARGET_HOST'} . ':' . $CONFIG{'TARGET'} . '/' . $dailyFolder;
-    
-    $cmd = $sshCall . " 'if [[ ! -d \"" . $CONFIG{'TARGET'} . '/' . $weeklyFolder . "\" ]]; then mkdir -p \"" . $CONFIG{'TARGET'} . '/' . $weeklyFolder . "\" ; fi'";
-    debugOut($cmd);
-    system($cmd);
-        # or die 'Failed to create ' . $CONFIG{'TARGET_USER'} . '@' . $CONFIG{'TARGET_HOST'} . ':' . $CONFIG{'TARGET'} . '/' . $weeklyFolder;
-    
-    $cmd = $sshCall . " 'if [[ ! -d \"" . $CONFIG{'TARGET'} . '/' . $monthlyFolder . "\" ]]; then mkdir -p \"" . $CONFIG{'TARGET'} . '/' . $monthlyFolder . "\" ; fi'";
-    debugOut($cmd);
-    system($cmd);
-        # or die 'Failed to create ' . $CONFIG{'TARGET_USER'} . '@' . $CONFIG{'TARGET_HOST'} . ':' . $CONFIG{'TARGET'} . '/' . $monthlyFolder;
+    ensureLocalFolderExists($fullDailyFolder);
+    ensureLocalFolderExists($fullWeeklyFolder);
+    ensureLocalFolderExists($fullMonthlyFolder);
 }
 
 # Execute the rotation
 rotateBackups();
 
+# Final status mail
+sendStatusMail("SUCCESS");
+
+# Pad log for readability
+logMsg('');
+logMsg('');
+
+
+
+
+
 sub rotateBackups {
     # Move excess from main to daily according to MAIN_MAX
-    moveExcessBackups( $CONFIG{'TARGET'}, $CONFIG{'MAIN_MAX'}, $CONFIG{'TARGET'} . "/$dailyFolder" );
+    moveExcessBackups( $CONFIG{'TARGET'}, $CONFIG{'MAIN_MAX'}, $fullDailyFolder );
     
     # Delete excess in daily (keep oldest from each day), needs no limit
     groupBackups( $CONFIG{'TARGET'} . "/$dailyFolder", \&getBackupDay );
     
     # Move excess from daily to weekly according to DAILY_MAX
-    moveExcessBackups( $CONFIG{'TARGET'} . "/$dailyFolder", $CONFIG{'DAILY_MAX'}, $CONFIG{'TARGET'} . "/$weeklyFolder" );
+    moveExcessBackups( $CONFIG{'TARGET'} . "/$dailyFolder", $CONFIG{'DAILY_MAX'}, $fullWeeklyFolder);
     
     # Delete excess in weekly (keep oldest from each week), needs no limit
     groupBackups( $CONFIG{'TARGET'} . "/$weeklyFolder", \&getBackupWeek );
     
     # Move excess from weekly to monthly according to WEEKLY_MAX
-    moveExcessBackups( $CONFIG{'TARGET'} . "/$weeklyFolder", $CONFIG{'WEEKLY_MAX'}, $CONFIG{'TARGET'} . "/$monthlyFolder" );
+    moveExcessBackups( $CONFIG{'TARGET'} . "/$weeklyFolder", $CONFIG{'WEEKLY_MAX'}, $fullMonthlyFolder);
     
     # Delete excess in monthly (keep oldest from each month), needs no limit
     groupBackups( $CONFIG{'TARGET'} . "/$monthlyFolder", \&getBackupMonth );
@@ -230,21 +287,7 @@ sub listBackupsInPath {
     my $path = $_[0];
     my @backupList = ();
 
-    if ( !$remoteTarget ) {
-        opendir(D, $path);
-        my @items = readdir(D);
-        closedir(D);
-
-        foreach (@items) {
-            # Is it a directory?
-            if ( -d "$path/$_" ) {
-                # Is it a backup folder (excludes junk and rotation folders)
-                if ( /$backupFormatPattern/ ) {
-                    push(@backupList, $_);
-                }
-            }
-        }
-    } else {
+    if ( $remoteTarget ) {
         # Only list directories. Use find as the wildcard used with ls will not be expanded unless
         # we spawn a new shell, which results in all kinds of pain with quotes. Don't forget -maxdepth!
         # Use backticks here as system doesn't capture output
@@ -267,6 +310,20 @@ sub listBackupsInPath {
                 push(@backupList, $_);
             }
         }
+    } else {
+        opendir(D, $path);
+        my @items = readdir(D);
+        closedir(D);
+
+        foreach (@items) {
+            # Is it a directory?
+            if ( -d "$path/$_" ) {
+                # Is it a backup folder (excludes junk and rotation folders)
+                if ( /$backupFormatPattern/ ) {
+                    push(@backupList, $_);
+                }
+            }
+        }
     }
  
     @backupList = sort @backupList;
@@ -284,7 +341,7 @@ sub listBackupsInPath {
 sub moveExcessBackups {
     my ( $source, $sourceMax, $target ) = @_;
 
-    print( "Handling excess backups (> $sourceMax) in '$source'\n" );
+    logMsg("> Handling excess backups (> $sourceMax) in '$remoteFolderPrefix$source'");
 
     my @backupList  = listBackupsInPath($source);
     @backupList     = sort @backupList;
@@ -295,24 +352,34 @@ sub moveExcessBackups {
 
             # If a target folder has been specified, move excess backups to that folder. If not, delete them
             if ( $target ) {
-                print( "Moving $currentBackup to '$target'\n" );
+                logMsg( "Moving $currentBackup to '$target'" );
                 
-                if ( !$remoteTarget ) {
-                    move( "$source/$currentBackup", "$target/$currentBackup" );
-                } else {
+                if ( $remoteTarget ) {
                     $cmd = $sshCall . " 'mv \"" . $source . '/' . $currentBackup . "\" \"" . $target . '/' . $currentBackup . "\"'";
                     debugOut($cmd);
                     system($cmd);
+                    if ($? >> 8) {
+                        failQuit("Remote: could not move $currentBackup to '$target'");
+                    }
+                } else {
+                    move( "$source/$currentBackup", "$target/$currentBackup" )
+                        or failQuit("Could not move $currentBackup to '$target'")
+                        ;
                 }
             } else {
-                print( "Deleting $currentBackup\n" );
+                logMsg( "Deleting $currentBackup\n" );
                 
-                if ( !$remoteTarget ) {
-                    remove_tree( "$source/$currentBackup", {error => \my $err}  );
-                } else {
+                if ( $remoteTarget ) {
                     $cmd = $sshCall . " 'rm -rf \"" . $source . '/' . $currentBackup . "\"'";
                     debugOut($cmd);
                     system($cmd);
+                    if ($? >> 8) {
+                        failQuit("Remote: could not delete $currentBackup");
+                    }
+                } else {
+                    remove_tree( "$source/$currentBackup", {error => \my $err}  )
+                        or failQuit("Could not delete $currentBackup")
+                        ;
                 }
             }
         }
@@ -330,7 +397,7 @@ sub moveExcessBackups {
 sub groupBackups {
     my ( $source, $secondIdentifierCall ) = @_;
 
-    print( "Grouping excess backups in '$source' by return value of '" . svref_2object($secondIdentifierCall)->GV->NAME . "'\n" );
+    logMsg("> Grouping excess backups in '$remoteFolderPrefix$source' by return value of '" . svref_2object($secondIdentifierCall)->GV->NAME . "'");
 
     my @backupList  = listBackupsInPath($source);
     @backupList     = sort @backupList;
@@ -357,17 +424,65 @@ sub groupBackups {
             if ( $currentNum < $highNum ) {
                 $highNum  = $currentNum;
             } else {
-                print( "Deleting excess backup $currentBackup\n" );
+                logMsg("Deleting excess backup $currentBackup");
                 
-                if ( !$remoteTarget ) {
-                    remove_tree( "$source/$currentBackup" );
-                } else {
+                if ( $remoteTarget ) {
                     $cmd = $sshCall . " 'rm -rf \"" . $source . '/' . $currentBackup . "\"'";
                     debugOut($cmd);
                     system($cmd);
+                    if ($? >> 8) {
+                        failQuit("Remote: could not delete excess backup $currentBackup");
+                    }
+                } else {
+                    remove_tree( "$source/$currentBackup", { error => \my $err } );
+                    
+                    if (@$err) {
+                        failQuit("Could not delete excess backup $currentBackup. \nEncountered errors: \n" . parseFileErrorArray($err));
+                    }
                 }
             }
         }
+    }
+}
+
+sub failQuit {
+    my ($msg) = @_;
+    
+    logMsg($msg);
+    
+    sendStatusMail("FAILED");
+    
+    logMsg('');
+    logMsg('');
+    
+    die;
+}
+
+sub sendStatusMail {
+    my ($status) = @_;
+    
+    if ($CONFIG{'STATUS_MAIL_RECIPIENTS'}) {
+        # libemail-sender-perl
+        use Email::Sender::Simple qw(sendmail);
+        use Email::Simple;
+        use Email::Simple::Creator;
+        
+        my $username = $ENV{LOGNAME} || $ENV{USER} || getpwuid($<);
+        
+        my $email = Email::Simple->create(
+          header => [
+            To      => $CONFIG{'STATUS_MAIL_RECIPIENTS'},
+            From    => $username . '@' . hostfqdn(),
+            Subject => 'rotating-rsync-backup [' . $status . ']: ' . $profileName,
+          ],
+          body => ""
+            # . "Profile: " . ($CONFIG{'NAME'} ? $CONFIG{'NAME'} : $configFile) . "\n\n"
+            # . $msg
+            . join('', @logMessages)
+            ,
+        );
+        
+        sendmail($email);
     }
 }
 
@@ -459,10 +574,75 @@ sub backupNameToTime {
     return str2time($backupName);
 }
 
+sub ensureRemoteFolderExists {
+    my ($fullPathOnRemote) = @_;
+    my $error = 0;
+    
+    $cmd = $sshCall . " 'if [[ ! -d \"$fullPathOnRemote\" ]]; then exit 199; fi'";
+    debugOut($cmd);
+    system($cmd);
+    if ($? >> 8 == 199) {
+        logMsg("Creating remote folder: $fullPathOnRemote");
+        
+        $cmd = $sshCall . " 'mkdir -p \"$fullPathOnRemote\" -m 0700'";
+        debugOut($cmd);
+        system($cmd);
+        if ($? >> 8) {
+            $error = 1;
+        }
+    } elsif ($? >> 8) {
+        $error = 1;
+    }
+    
+    if ($error) {
+        failQuit("Failed to ensure remote folder existence: $fullPathOnRemote");
+    }
+}
+
+sub ensureLocalFolderExists {
+    my ($fullPath) = @_;
+    
+    if ( !-d $fullPath ) {
+        logMsg("Creating local folder: $fullPath");
+        
+        make_path($fullPath, { chmod => 0700, error => \my $err });
+        
+        if (@$err) {
+            failQuit("Failed to ensure local folder existence: $fullPath. \nEncountered errors: \n" . parseFileErrorArray($err));
+        }
+    }
+}
+
+sub parseFileErrorArray {
+    my ($err) = @_;
+    my @errorStrings = ();
+    
+    for my $diag (@$err) {
+        my ($file, $message) = %$diag;
+        
+        if ($file eq '') {
+            push @errorStrings, "General error: $message";
+        } else {
+            push @errorStrings, "Error processing $file: $message";
+        }
+    }
+    
+    return join("\n", @errorStrings);
+}
+
+sub logMsg {
+    my ($msg) = @_;
+    
+    my $fullMsg = time2str('%Y-%m-%d %H-%M-%S', time() ) . ": $msg\n";
+    
+    push @logMessages, $fullMsg;
+    print $fullMsg;
+}
+
 sub debugOut {
     my ($msg) = @_;
     
     if ( $debugEnabled ) {
-        print "DEBUG: $msg\n";
+        logMsg("DEBUG: $msg");
     }
 }
