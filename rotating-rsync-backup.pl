@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v2.0.2
+# rotating-rsync-backup v2.0.3
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -120,7 +120,7 @@ my $remoteTarget        = $CONFIG{'TARGET_HOST'} ? 1 : 0;
 my $sshCall             =   "$sshCmd "
                             . ($CONFIG{'SSH_IDENTITY'}  ? '-i "' . $CONFIG{'SSH_IDENTITY'}  . '"' : '') . ' '
                             . ($CONFIG{'SSH_PORT'}      ? '-p "' . $CONFIG{'SSH_PORT'}      . '"' : '') . ' '
-                            . ($CONFIG{'TARGET_HOST'} ? (($CONFIG{'TARGET_USER'} ? $CONFIG{'TARGET_USER'} . '@' : '') . $CONFIG{'TARGET_HOST'} . ':') : '');
+                            . ($CONFIG{'TARGET_HOST'} ? (($CONFIG{'TARGET_USER'} ? $CONFIG{'TARGET_USER'} . '@' : '') . $CONFIG{'TARGET_HOST'}) : '');
 # Mostly for display purposes
 my $remoteFolderPrefix  = ($CONFIG{'TARGET_HOST'} ? (($CONFIG{'TARGET_USER'} ? $CONFIG{'TARGET_USER'} . '@' : '') . $CONFIG{'TARGET_HOST'} . ':') : '');
 # Debug purposes
