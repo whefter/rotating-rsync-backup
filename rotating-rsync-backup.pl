@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v2.0
+# rotating-rsync-backup v2.0.1
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -181,7 +181,7 @@ $sshParameter .= "'";
 
 # Basic commandline
 my $rsyncCmdline =  "$rsyncCmd "
-                    . " -a "
+                    . " -a --delete "
                     . (($remoteSources || $remoteTarget) ? " $sshParameter " : "")
                     . ($CONFIG{'RSYNC_PARAMS'} ? " " . $CONFIG{'RSYNC_PARAMS'} . " " : "")
                     . ""; # Cosmetic
