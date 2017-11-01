@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v2.0.1
+# rotating-rsync-backup v2.0.2
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
