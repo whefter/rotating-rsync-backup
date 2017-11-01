@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v2.0.3
+# rotating-rsync-backup v2.0.4
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -246,6 +246,8 @@ rotateBackups();
 
 # Final status mail
 sendStatusMail("SUCCESS");
+logMsg('');
+logMsg(">>> rotating-rsync-backup done");
 
 # Pad log for readability
 logMsg('');
