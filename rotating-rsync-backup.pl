@@ -120,7 +120,7 @@ my $remoteTarget        = $CONFIG{'TARGET_HOST'} ? 1 : 0;
 my $sshCall             =   "$sshCmd "
                             . ($CONFIG{'SSH_IDENTITY'}  ? '-i "' . $CONFIG{'SSH_IDENTITY'}  . '"' : '') . ' '
                             . ($CONFIG{'SSH_PORT'}      ? '-p "' . $CONFIG{'SSH_PORT'}      . '"' : '') . ' '
-                            . $CONFIG{'TARGET_USER'} . '@' . $CONFIG{'TARGET_HOST'};
+                            . ($CONFIG{'TARGET_HOST'} ? (($CONFIG{'TARGET_USER'} ? $CONFIG{'TARGET_USER'} . '@' : '') . $CONFIG{'TARGET_HOST'} . ':') : '');
 # Mostly for display purposes
 my $remoteFolderPrefix  = ($CONFIG{'TARGET_HOST'} ? (($CONFIG{'TARGET_USER'} ? $CONFIG{'TARGET_USER'} . '@' : '') . $CONFIG{'TARGET_HOST'} . ':') : '');
 # Debug purposes
