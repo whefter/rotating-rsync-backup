@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v2.0.4
+# rotating-rsync-backup v2.0.5
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -218,7 +218,9 @@ logMsg('');
 logMsg(">> Executing rsync");
 logMsg($rsyncCmdline);
 system($rsyncCmdline);
-if ($? >> 8) {
+my $rsyncExitCode = $? >> 8;
+# Exit codes that indicate partial transfers are OK!
+if ($rsyncExitCode && ($rsyncExitCode ne 23 && $rsyncExitCode ne 24 && $rsyncExitCode ne 25)) {
     failQuit('rsync exited with non-zero code.');
 }
 
