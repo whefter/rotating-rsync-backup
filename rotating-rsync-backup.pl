@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v2.0.5
+# rotating-rsync-backup v2.0.6
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -60,6 +60,7 @@ my $debugEnabled = $ARGV[1] || 0;
 
 # Log storage (used in the status mail)
 my @logMessages = ();
+my $warningOccured = 0;
 
 # Read config from configuration file into hash
 my %CONFIG;
@@ -220,8 +221,14 @@ logMsg($rsyncCmdline);
 system($rsyncCmdline);
 my $rsyncExitCode = $? >> 8;
 # Exit codes that indicate partial transfers are OK!
-if ($rsyncExitCode && ($rsyncExitCode ne 23 && $rsyncExitCode ne 24 && $rsyncExitCode ne 25)) {
-    failQuit('rsync exited with non-zero code.');
+if ($rsyncExitCode) {
+    if ($rsyncExitCode eq 23 || $rsyncExitCode eq 24 || $rsyncExitCode eq 25) {
+        $warningOccured = 1;
+        logMsg('');
+        logMsg('WARNING: rsync exited with non-critical non-zero exit code');
+    } else {
+        failQuit('rsync exited with critical exit code.');
+    }
 }
 
 
@@ -247,7 +254,7 @@ if ( $remoteTarget ) {
 rotateBackups();
 
 # Final status mail
-sendStatusMail("SUCCESS");
+sendStatusMail($warningOccured ? "WARNING" : "SUCCESS");
 logMsg('');
 logMsg(">>> rotating-rsync-backup done");
 
