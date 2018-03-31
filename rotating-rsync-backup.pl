@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v2.0.6
+# rotating-rsync-backup v2.0.7
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -137,11 +137,15 @@ if ( $remoteTarget ) {
 
 
 # Get name of last backup
-my @mainBackupList = listBackupsInPath($CONFIG{'TARGET'});
-my $lastBackupName = pop @mainBackupList;
+my @backupList = ();
+push(@backupList, map { '_monthly/' . $_ } listBackupsInPath($CONFIG{'TARGET'} . '/_monthly'));
+push(@backupList, map { '_weekly/' . $_ } listBackupsInPath($CONFIG{'TARGET'} . '/_weekly'));
+push(@backupList, map { '_daily/' . $_ } listBackupsInPath($CONFIG{'TARGET'} . '/_daily'));
+push(@backupList, listBackupsInPath($CONFIG{'TARGET'}));
+my $lastBackupRelativePath = pop @backupList;
 
-if ($lastBackupName) {
-    logMsg("Last backup name: $lastBackupName");
+if ($lastBackupRelativePath) {
+    logMsg("Last backup name: $lastBackupRelativePath");
 } else {
     logMsg("No existing backup detected.");
 }
@@ -170,14 +174,17 @@ for my $i (0 .. scalar(@{$CONFIG{'SOURCE'}})) {
 
 
 # This is for rsync's -e parameter
-my $sshParameter = "-e 'ssh";
+my $sshParameter = "-e \"ssh";
 if ( $CONFIG{'SSH_IDENTITY'} ) {
-    $sshParameter .= ' -i "' . $CONFIG{'SSH_IDENTITY'} . '" ';
+    $sshParameter .= ' -i \'' . $CONFIG{'SSH_IDENTITY'} . '\' ';
 }
 if ( $CONFIG{'SSH_PORT'} ) {
-    $sshParameter .= ' -p "' . $CONFIG{'SSH_PORT'} . '" ';
+    $sshParameter .= ' -p \'' . $CONFIG{'SSH_PORT'} . '\' ';
 }
-$sshParameter .= "'";
+if ( $CONFIG{'SSH_PARAMS'} ) {
+    $sshParameter .= ' ' . $CONFIG{'SSH_PARAMS'} . ' ';
+}
+$sshParameter .= "\"";
 
 
 # Basic commandline
@@ -193,21 +200,25 @@ $rsyncCmdline .= $sourceCmdline;
 
 
 # --link-dest must be relative to the TARGET FOLDER. It does not take user:host@ before the relative path, but figures that out itself
-if ( $lastBackupName ) {
-    $rsyncCmdline   .= " --link-dest=\"../$lastBackupName\" "
+if ( $lastBackupRelativePath ) {
+    $rsyncCmdline   .= " --link-dest=\"../$lastBackupRelativePath\" "
                     . ""; # Cosmetic
 }
 
 
 # Add target, check for existence and create if necessary
-my $fullTargetFolder = $CONFIG{'TARGET'} . "/$thisBackupName";
-my $rsyncTarget =  $remoteFolderPrefix . $fullTargetFolder;
+# Use a temporary folder and rename to an error folder if anything fails. That way, if the script is interrupted
+# or ends in an error, the temporary/error folders won't crowd out the actual folders during groups/excess deletes.
+my $finalTargetFolder = $CONFIG{'TARGET'} . "/" . $thisBackupName;
+my $progressTargetFolder = $CONFIG{'TARGET'} . "/" . $thisBackupName . "_tmp";
+my $errorTargetFolder = $CONFIG{'TARGET'} . "/" . $thisBackupName . "_error";
+my $rsyncTarget =  $remoteFolderPrefix . $progressTargetFolder;
 
 logMsg('Target folder: ' . $rsyncTarget);
 if ( $remoteTarget ) {
-    ensureRemoteFolderExists($fullTargetFolder);
+    ensureRemoteFolderExists($progressTargetFolder);
 } else {
-    ensureLocalFolderExists($fullTargetFolder);
+    ensureLocalFolderExists($progressTargetFolder);
 }
 
 $rsyncCmdline   .= " \"$rsyncTarget\" "
@@ -218,6 +229,8 @@ $rsyncCmdline   .= " \"$rsyncTarget\" "
 logMsg('');
 logMsg(">> Executing rsync");
 logMsg($rsyncCmdline);
+
+
 system($rsyncCmdline);
 my $rsyncExitCode = $? >> 8;
 # Exit codes that indicate partial transfers are OK!
@@ -225,10 +238,39 @@ if ($rsyncExitCode) {
     if ($rsyncExitCode eq 23 || $rsyncExitCode eq 24 || $rsyncExitCode eq 25) {
         $warningOccured = 1;
         logMsg('');
-        logMsg('WARNING: rsync exited with non-critical non-zero exit code');
+        logMsg('WARNING: rsync exited with non-critical non-zero exit code; most likely cause is that some files could not be copied.');
     } else {
+        debugOut("Renaming temporary folder $progressTargetFolder to $errorTargetFolder");
+        
+        if ($remoteTarget) {
+            $cmd = $sshCall . " 'mv \"" . $progressTargetFolder . "\" \"" . $errorTargetFolder . "\"'";
+            debugOut($cmd);
+            system($cmd);
+            if ($? >> 8) {
+                logMsg("Remote: could not move '$progressTargetFolder' to '$errorTargetFolder'");
+            }
+        } else {
+            move( "$progressTargetFolder", "$errorTargetFolder" )
+                or logMsg("Could not move '$progressTargetFolder' to '$errorTargetFolder'")
+                ;
+        }
+        
         failQuit('rsync exited with critical exit code.');
     }
+}
+
+debugOut("Renaming temporary folder $progressTargetFolder to $finalTargetFolder");
+if ($remoteTarget) {
+    $cmd = $sshCall . " 'mv \"" . $progressTargetFolder . "\" \"" . $finalTargetFolder . "\"'";
+    debugOut($cmd);
+    system($cmd);
+    if ($? >> 8) {
+        failQuit("Remote: could not move '$progressTargetFolder' to '$finalTargetFolder'");
+    }
+} else {
+    move( "$progressTargetFolder", "$finalTargetFolder" )
+        or failQuit("Could not move '$progressTargetFolder' to '$finalTargetFolder'")
+        ;
 }
 
 
@@ -297,11 +339,23 @@ sub rotateBackups {
 sub listBackupsInPath {
     my $path = $_[0];
     my @backupList = ();
+    
+    # Strip ending slashes
+    $path =~ s/\/*$//;
 
+    # The resulting total list must be sorted from oldest to youngest backup.
     if ( $remoteTarget ) {
+        $cmd = $sshCall . " 'if [ ! -d \"$path\" ]; then exit 199; fi'";
+        debugOut($cmd);
+        system($cmd);
+        if ($? >> 8 == 199) {
+            return ();
+        }
+        
         # Only list directories. Use find as the wildcard used with ls will not be expanded unless
         # we spawn a new shell, which results in all kinds of pain with quotes. Don't forget -maxdepth!
         # Use backticks here as system doesn't capture output
+        # The ending slash after $path IS VERY important, otherwise the folder itself is the main result.
         $cmd = $sshCall . " 'find \"" . $path . "/\" -type d -maxdepth 1'";
         debugOut($cmd);
         my @items = `$cmd`;
@@ -313,7 +367,7 @@ sub listBackupsInPath {
             # Remove any ending characters
             chomp;
             
-            # Basename and remove ending slash added by ls
+            # Basename and remove ending slash added by ls/find
             $_ =~ s/^.*?\/([^\/]+)\/?$/$1/;
             
             # Is it a backup folder (excludes junk and rotation folders)
@@ -322,6 +376,10 @@ sub listBackupsInPath {
             }
         }
     } else {
+        if (!(-d $path)) {
+            return ();
+        }
+        
         opendir(D, $path);
         my @items = readdir(D);
         closedir(D);
@@ -329,14 +387,14 @@ sub listBackupsInPath {
         foreach (@items) {
             # Is it a directory?
             if ( -d "$path/$_" ) {
-                # Is it a backup folder (excludes junk and rotation folders)
+                # Is it a backup folder (excludes junk and rotation folders)?
                 if ( /$backupFormatPattern/ ) {
-                    push(@backupList, $_);
+                    push(@backupList, substr "$path/$_", (length $path) + 1);
                 }
             }
         }
     }
- 
+
     @backupList = sort @backupList;
 
     return @backupList;
@@ -589,7 +647,7 @@ sub ensureRemoteFolderExists {
     my ($fullPathOnRemote) = @_;
     my $error = 0;
     
-    $cmd = $sshCall . " 'if [[ ! -d \"$fullPathOnRemote\" ]]; then exit 199; fi'";
+    $cmd = $sshCall . " 'if [ ! -d \"$fullPathOnRemote\" ]; then exit 199; fi'";
     debugOut($cmd);
     system($cmd);
     if ($? >> 8 == 199) {
