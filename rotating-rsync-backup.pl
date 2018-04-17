@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v2.0.7
+# rotating-rsync-backup v2.0.8
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -8,7 +8,7 @@
 # folders are rotated, with a configurable number of daily/weekly/monthly backup folders
 # being kept. Hardlinks are used where possible.
 #
-# Copyright (c) 2014-2017 William Hefter <william@whefter.de>
+# Copyright (c) 2014-2018 William Hefter <william@whefter.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -232,7 +232,15 @@ logMsg($rsyncCmdline);
 
 
 system($rsyncCmdline);
+my $rsyncInt = ($? & 127) == 2;
 my $rsyncExitCode = $? >> 8;
+
+if ($rsyncInt) {
+    logMsg('');
+    logMsg('rsync received SIGINT, terminating');
+    exit 2;
+}
+
 # Exit codes that indicate partial transfers are OK!
 if ($rsyncExitCode) {
     if ($rsyncExitCode eq 23 || $rsyncExitCode eq 24 || $rsyncExitCode eq 25) {
