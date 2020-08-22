@@ -11,7 +11,8 @@ import (
 
 // CreateBackup runs all necessary commands to create a new backup based on the passed
 // backup name thisBackupName and the relative path lastBackupRelativePath to the last backup
-// to use as hard link destination
+// to use as hard link destination. Note that lastBackupRelativePath is relative to the MAIn
+// target folder
 func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePath string) {
 	Log.Info.Printf("Backing up sources: %v", options.sources)
 
@@ -25,9 +26,10 @@ func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePat
 	args := []string{"-a", "--delete"}
 
 	if lastBackupRelativePath != "" {
-		// --link-dest must be relative to the TARGET FOLDER. It does not take user:host@ before the relative path,
-		// but figures that out itself
-		args = append(args, "--link-dest", lastBackupRelativePath)
+		// --link-dest must be relative to the TARGET FOLDER, which means the NEWLY created backup folder
+		// (not the "main" folder). Hence the "../".
+		// It does not take user:host@ before the relative path, but figures that out itself
+		args = append(args, "--link-dest", filepath.Join("../", lastBackupRelativePath))
 	}
 
 	args = append(args, options.rsyncOptions...)

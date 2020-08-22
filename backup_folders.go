@@ -169,7 +169,7 @@ func EnsureLocalFolderExists(options *Options, absPath string) {
 }
 
 // DetermineLastBackup fetches all backup folder names in the target path and determines the most
-// most recent one
+// most recent one, returning its relative path relative to the MAIN target folder
 func DetermineLastBackup(options *Options) string {
 	var backups []string
 
