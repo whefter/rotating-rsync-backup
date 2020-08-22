@@ -6,12 +6,29 @@
     "configurations": [
         {
             "name": "Launch",
+            "cwd": "${workspaceFolder}",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${fileDirname}",
             "env": {},
             "args": [
+                "--source",
+                "/go/src/rotating-rsync-backup/dev-source",
+                "--profile-name",
+                "foo",
+                "--target",
+                "/tmp/target",
+                "--target-host",
+                "dev-target",
+                "--target-user",
+                "rrb",
+                "--target-port",
+                "2222",
+                "--ssh-options",
+                "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i dev-target-ssh/id_ed25519",
+                "--rsync-options",
+                "-v"
             ]
         }
     ]
