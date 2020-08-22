@@ -41,7 +41,7 @@ func HandleExcessBackups(options *Options, fromPath string, toPath string, maxFr
 	SortBackupList(&backupList, false)
 
 	if uint(len(backupList)) > maxFrom {
-		for i := maxFrom; i < uint(len(backupList)); i++ {
+		for i := 0; uint(i) < uint(len(backupList))-maxFrom; i++ {
 			currentBackup := backupList[i]
 
 			if toPath == "" {
