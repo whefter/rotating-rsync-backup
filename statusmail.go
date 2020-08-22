@@ -23,6 +23,8 @@ func SendStatusMail(options *Options) {
 		return
 	}
 
+	Log.Info.Printf("Sending status mail to: %v", options.statusMailOptions.recipients)
+
 	var logLevel string
 	if fatalBuf.Len() > 0 {
 		logLevel = "FATAL"
