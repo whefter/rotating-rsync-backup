@@ -6,7 +6,6 @@ services:
     build:
       dockerfile: Dockerfile
       context: .
-    command: /bin/sh -c "sleep infinity"
     depends_on:
       - dev-target
       - maildev
@@ -16,10 +15,11 @@ services:
       - seccomp:unconfined
     volumes:
       - ../:/go/src/rotating-rsync-backup:cached
+    stdin_open: true
+    tty: true
 
   dev-target:
     hostname: rotating-rsync-backup-dev-target
-    # image: linuxserver/openssh-server
     build:
       dockerfile: Dockerfile.dev-target
       context: .
