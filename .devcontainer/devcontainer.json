@@ -2,14 +2,26 @@
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.122.1/containers/go
 {
 	"name": "Go",
-	"dockerFile": "Dockerfile",
-	"runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+
+	// TO RUN WITH DOCKER
+	// "dockerFile": "Dockerfile",
+	// "runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+	// "workspaceMount": "source=${localWorkspaceFolder},target=/go/src/rotating-rsync-backup,type=bind",
+	// "workspaceFolder": "/go/src/rotating-rsync-backup",
+
+	// TO RUN WITH DOCKER-COMPOSE
+	"dockerComposeFile": "docker-compose.yml",
+	"workspaceFolder": "/go/src/rotating-rsync-backup",
+	"service": "go",
+	// "runServices": ["dev-target"],
+
 
 	// Set *default* container specific settings.json values on container create.
 	"settings": {
 		"terminal.integrated.shell.linux": "/bin/bash",
 		"go.gopath": "/go"
 	},
+
 
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [

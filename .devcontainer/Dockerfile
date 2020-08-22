@@ -74,6 +74,14 @@ RUN apt-get update \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* /tmp/gotools
 
+RUN apt-get update \
+    && apt-get install -y rsync \
+    #
+    # Clean up
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/* /tmp/gotools
+
 # Update this to "on" or "off" as appropriate
 ENV GO111MODULE=auto
 

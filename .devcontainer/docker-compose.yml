@@ -1,0 +1,35 @@
+version: '3.7'
+
+services:
+  go:
+    hostname: rotating-rsync-backup-godev
+    build:
+      dockerfile: Dockerfile
+      context: .
+    command: /bin/sh -c "sleep infinity"
+    depends_on:
+      - dev-target
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - ../:/go/src/rotating-rsync-backup:cached
+
+  dev-target:
+    hostname: rotating-rsync-backup-dev-target
+    # image: linuxserver/openssh-server
+    build:
+      dockerfile: Dockerfile.dev-target
+      context: .
+    volumes:
+      - ../dev-target-ssh:/ssh-keys:ro
+    environment:
+      - PUID=1000
+      - GUID=1000
+      - TZ=Europe/Berlin
+      - SUDO_ACCESS=true
+      # - PASSWORD_ACCESS=true
+      - USER_NAME=rrb
+      # - USER_PASSWORD=rrb
+      - PUBLIC_KEY_FILE=/ssh-keys/id_ed25519.pub
