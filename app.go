@@ -31,7 +31,7 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:     "target",
-				Usage:    "Target path. This should be an absolute folder path. For paths on remote hosts, --target-host must be specified. For custom SSH options, such as  target host user/port, pass the -e option to rsync using --rsync-options.",
+				Usage:    "Required. Target path. This should be an absolute folder path. For paths on remote hosts, --target-host must be specified. For custom SSH options, such as  target host user/port, pass the -e option to rsync using --rsync-options.",
 				Required: true,
 			},
 			&cli.StringFlag{
