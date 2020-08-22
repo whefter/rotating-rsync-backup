@@ -1,0 +1,5 @@
+/.devcontainer
+/.vscode
+/dev-source
+/dev-target-ssh
+/*.pl
