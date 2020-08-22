@@ -9,6 +9,9 @@ import (
 	"github.com/alessio/shellescape"
 )
 
+// CreateBackup runs all necessary commands to create a new backup based on the passed
+// backup name thisBackupName and the relative path lastBackupRelativePath to the last backup
+// to use as hard link destination
 func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePath string) {
 	// Add target, check for existence and create if necessary
 	// Use a temporary folder and rename to an error folder if anything fails. That way, if the script is interrupted

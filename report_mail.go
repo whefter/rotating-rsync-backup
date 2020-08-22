@@ -7,7 +7,9 @@ import (
 	"gopkg.in/gomail.v2"
 )
 
-func SendStatusMail(options *Options) {
+// SendReportMail sends a report mail to the recipients configured in the options using the
+// configured SMTP server, containing the full log output up until the function call
+func SendReportMail(options *Options) {
 	logContent := Log.String()
 
 	if options.ReportOptions.smtpHost == "" ||
@@ -23,7 +25,7 @@ func SendStatusMail(options *Options) {
 		return
 	}
 
-	Log.Info.Printf("Sending status mail to: %v", options.ReportOptions.recipients)
+	Log.Info.Printf("Sending report mail to: %v", options.ReportOptions.recipients)
 
 	var logLevel string
 	if fatalBuf.Len() > 0 {
@@ -53,6 +55,6 @@ func SendStatusMail(options *Options) {
 	}
 
 	if err := d.DialAndSend(m); err != nil {
-		panic(fmt.Sprintf("Error while sending status mail: %v", err))
+		panic(fmt.Sprintf("Error while sending report mail: %v", err))
 	}
 }

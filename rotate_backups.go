@@ -8,24 +8,25 @@ import (
 	"github.com/alessio/shellescape"
 )
 
+// RotateBackups is the main entry point to perform backup rotating/grouping on the target folder
 func RotateBackups(options *Options) {
 	// Move excess from main to daily according to MAIN_MAX
 	HandleExcessBackups(options, options.target, options.DailyFolderPath(), options.maxMain)
 
 	// Delete excess in daily (keep oldest from each day), needs no limit
-	GroupBackups(options, options.DailyFolderPath(), BackupGroupTypeDay)
+	GroupBackups(options, options.DailyFolderPath(), backupGroupTypeDay)
 
 	// Move excess from daily to weekly according to DAILY_MAX
 	HandleExcessBackups(options, options.DailyFolderPath(), options.WeeklyFolderPath(), options.maxDaily)
 
 	// Delete excess in weekly (keep oldest from each week), needs no limit
-	GroupBackups(options, options.WeeklyFolderPath(), BackupGroupTypeWeek)
+	GroupBackups(options, options.WeeklyFolderPath(), backupGroupTypeWeek)
 
 	// Move excess from weekly to monthly according to WEEKLY_MAX
 	HandleExcessBackups(options, options.WeeklyFolderPath(), options.MonthlyFolderPath(), options.maxWeekly)
 
 	// Delete excess in monthly (keep oldest from each month), needs no limit
-	GroupBackups(options, options.MonthlyFolderPath(), BackupGroupTypeMonth)
+	GroupBackups(options, options.MonthlyFolderPath(), backupGroupTypeMonth)
 
 	// Delete excess from monthly according to MONTHLY_MAX
 	HandleExcessBackups(options, options.MonthlyFolderPath(), "", options.maxMonthly)
@@ -88,15 +89,17 @@ func HandleExcessBackups(options *Options, fromPath string, toPath string, maxFr
 	}
 }
 
-type BackupGroupType string
+type backupGroupType string
 
 const (
-	BackupGroupTypeDay   BackupGroupType = "Day"
-	BackupGroupTypeWeek                  = "Week"
-	BackupGroupTypeMonth                 = "Month"
+	backupGroupTypeDay   backupGroupType = "Day"
+	backupGroupTypeWeek                  = "Week"
+	backupGroupTypeMonth                 = "Month"
 )
 
-func GroupBackups(options *Options, sourcePath string, groupBy BackupGroupType) {
+// GroupBackups "groups" backups in the passed sourcePath by keeping only the configured amount
+// of most recent backups for the passed backupGroupType
+func GroupBackups(options *Options, sourcePath string, groupBy backupGroupType) {
 	Log.Info.Printf("> Grouping excess backups in %s by %s", sourcePath, groupBy)
 
 	backupList := ListBackupsInPath(options, sourcePath, sourcePath)
@@ -114,12 +117,12 @@ func GroupBackups(options *Options, sourcePath string, groupBy BackupGroupType) 
 
 		thisBackupGroup := 0
 
-		if groupBy == BackupGroupTypeDay {
+		if groupBy == backupGroupTypeDay {
 			thisBackupGroup = backupTime.Year()*10000 + int(backupTime.Month())*100 + backupTime.Day()
-		} else if groupBy == BackupGroupTypeWeek {
+		} else if groupBy == backupGroupTypeWeek {
 			year, week := backupTime.ISOWeek()
 			thisBackupGroup = year*10000 + week*100
-		} else if groupBy == BackupGroupTypeMonth {
+		} else if groupBy == backupGroupTypeMonth {
 			thisBackupGroup = backupTime.Year()*10000 + int(backupTime.Month())*100
 		} else {
 			panic(fmt.Sprintf("groupBackups: invalid BackupGroupType %s", groupBy))

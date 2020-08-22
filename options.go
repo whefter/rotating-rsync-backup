@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// Options is the main options struct
 type Options struct {
 	profileName   string
 	sources       []string
@@ -22,6 +23,7 @@ type Options struct {
 	ReportOptions ReportOptions
 }
 
+// ReportOptions is the options struct for report mail-related options
 type ReportOptions struct {
 	recipients   []string
 	from         string
@@ -32,6 +34,8 @@ type ReportOptions struct {
 	smtpInsecure bool
 }
 
+// SSHOptions constructs and returns a string slice containing all SSH options, including
+// the target user as -l and the port as -p
 func (options *Options) SSHOptions() []string {
 	sshOptions := append(options.sshOptions)
 	if options.IsRemoteTarget() {
@@ -47,23 +51,28 @@ func (options *Options) SSHOptions() []string {
 	return sshOptions
 }
 
+// DailyFolderPath Returns the full path to the "daily" folder based on the target path
 func (options *Options) DailyFolderPath() string {
-	return filepath.Join(options.target, DAILY_FOLDER_NAME)
+	return filepath.Join(options.target, DailyFolderName)
 }
 
+// WeeklyFolderPath Returns the full path to the "weekly" folder based on the target path
 func (options *Options) WeeklyFolderPath() string {
-	return filepath.Join(options.target, WEEKLY_FOLDER_NAME)
+	return filepath.Join(options.target, WeeklyFolderName)
 }
 
+// MonthlyFolderPath Returns the full path to the "monthly" folder based on the target path
 func (options *Options) MonthlyFolderPath() string {
-	return filepath.Join(options.target, MONTHLY_FOLDER_NAME)
+	return filepath.Join(options.target, MonthlyFolderName)
 }
 
+// IsRemoteTarget is a helper function to check if the options indicate the target folder
+// is to be on a remote host
 func (options *Options) IsRemoteTarget() bool {
 	if options.targetHost != "" {
 		// TODO Validate user/port
 		return true
-	} else {
-		return false
 	}
+
+	return false
 }
