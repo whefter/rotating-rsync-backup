@@ -46,8 +46,8 @@ func main() {
 		Log.Info.Printf("Last backup: %s", lastBackupRelativePath)
 	}
 
-	createBackup(options, thisBackupName, lastBackupRelativePath)
-	rotateBackups(options)
+	CreateBackup(options, thisBackupName, lastBackupRelativePath)
+	RotateBackups(options)
 
 	SendStatusMail(options)
 }
@@ -130,10 +130,10 @@ func ensureLocalFolderExists(options *Options, absPath string) {
 func determineLastBackup(options *Options) string {
 	var backups []string
 
-	backups = append(backups, listBackupsInPath(options, options.target, options.target)...)
-	backups = append(backups, listBackupsInPath(options, options.target, filepath.Join(options.target, DAILY_FOLDER_NAME))...)
-	backups = append(backups, listBackupsInPath(options, options.target, filepath.Join(options.target, WEEKLY_FOLDER_NAME))...)
-	backups = append(backups, listBackupsInPath(options, options.target, filepath.Join(options.target, MONTHLY_FOLDER_NAME))...)
+	backups = append(backups, ListBackupsInPath(options, options.target, options.target)...)
+	backups = append(backups, ListBackupsInPath(options, options.target, filepath.Join(options.target, DAILY_FOLDER_NAME))...)
+	backups = append(backups, ListBackupsInPath(options, options.target, filepath.Join(options.target, WEEKLY_FOLDER_NAME))...)
+	backups = append(backups, ListBackupsInPath(options, options.target, filepath.Join(options.target, MONTHLY_FOLDER_NAME))...)
 
 	if len(backups) > 0 {
 		// sort.Strings(backups)

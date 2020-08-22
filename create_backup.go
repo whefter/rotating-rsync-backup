@@ -9,7 +9,7 @@ import (
 	"github.com/alessio/shellescape"
 )
 
-func createBackup(options *Options, thisBackupName string, lastBackupRelativePath string) {
+func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePath string) {
 	// Add target, check for existence and create if necessary
 	// Use a temporary folder and rename to an error folder if anything fails. That way, if the script is interrupted
 	// or ends in an error, the temporary/error folders won't crowd out the actual folders during groups/excess deletes.

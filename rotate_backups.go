@@ -8,24 +8,24 @@ import (
 	"github.com/alessio/shellescape"
 )
 
-func rotateBackups(options *Options) {
+func RotateBackups(options *Options) {
 	// Move excess from main to daily according to MAIN_MAX
 	HandleExcessBackups(options, options.target, options.DailyFolderPath(), options.maxMain)
 
 	// Delete excess in daily (keep oldest from each day), needs no limit
-	groupBackups(options, options.DailyFolderPath(), BackupGroupTypeDay)
+	GroupBackups(options, options.DailyFolderPath(), BackupGroupTypeDay)
 
 	// Move excess from daily to weekly according to DAILY_MAX
 	HandleExcessBackups(options, options.DailyFolderPath(), options.WeeklyFolderPath(), options.maxDaily)
 
 	// Delete excess in weekly (keep oldest from each week), needs no limit
-	groupBackups(options, options.WeeklyFolderPath(), BackupGroupTypeWeek)
+	GroupBackups(options, options.WeeklyFolderPath(), BackupGroupTypeWeek)
 
 	// Move excess from weekly to monthly according to WEEKLY_MAX
 	HandleExcessBackups(options, options.WeeklyFolderPath(), options.MonthlyFolderPath(), options.maxWeekly)
 
 	// Delete excess in monthly (keep oldest from each month), needs no limit
-	groupBackups(options, options.MonthlyFolderPath(), BackupGroupTypeMonth)
+	GroupBackups(options, options.MonthlyFolderPath(), BackupGroupTypeMonth)
 
 	// Delete excess from monthly according to MONTHLY_MAX
 	HandleExcessBackups(options, options.MonthlyFolderPath(), "", options.maxMonthly)
@@ -36,7 +36,7 @@ func rotateBackups(options *Options) {
 func HandleExcessBackups(options *Options, fromPath string, toPath string, maxFrom uint) {
 	Log.Info.Printf("> Handling excess backups (> %d) in %s to %s", maxFrom, fromPath, toPath)
 
-	backupList := listBackupsInPath(options, fromPath, fromPath)
+	backupList := ListBackupsInPath(options, fromPath, fromPath)
 	SortBackupList(&backupList, false)
 
 	if uint(len(backupList)) > maxFrom {
@@ -96,10 +96,10 @@ const (
 	BackupGroupTypeMonth                 = "Month"
 )
 
-func groupBackups(options *Options, sourcePath string, groupBy BackupGroupType) {
+func GroupBackups(options *Options, sourcePath string, groupBy BackupGroupType) {
 	Log.Info.Printf("> Grouping excess backups in %s by %s", sourcePath, groupBy)
 
-	backupList := listBackupsInPath(options, sourcePath, sourcePath)
+	backupList := ListBackupsInPath(options, sourcePath, sourcePath)
 	SortBackupList(&backupList, true)
 
 	currentOverallGroup := 0

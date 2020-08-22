@@ -9,9 +9,9 @@ import (
 	"github.com/alessio/shellescape"
 )
 
-// listBackupsInPath returns a string slice contaning relative paths to all backups
+// ListBackupsInPath returns a string slice contaning relative paths to all backups
 // in the passed absPath, relative to basePath
-func listBackupsInPath(options *Options, basePath string, absPath string) []string {
+func ListBackupsInPath(options *Options, basePath string, absPath string) []string {
 	Log.Debug.Printf("listBackupsInPath(%s)", absPath)
 	backups := []string{}
 
