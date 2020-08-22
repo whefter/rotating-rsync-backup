@@ -75,7 +75,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* /tmp/gotools
 
 RUN apt-get update \
-    && apt-get install -y rsync \
+    && apt-get install -y rsync nano \
     #
     # Clean up
     && apt-get autoremove -y \
