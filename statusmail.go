@@ -10,11 +10,11 @@ import (
 func SendStatusMail(options *Options) {
 	logContent := Log.String()
 
-	if options.statusMailOptions.smtpHost == "" ||
-		options.statusMailOptions.smtpPort == 0 ||
-		options.statusMailOptions.smtpUsername == "" ||
-		options.statusMailOptions.smtpPassword == "" {
-		if len(options.statusMailOptions.recipients) > 0 {
+	if options.ReportOptions.smtpHost == "" ||
+		options.ReportOptions.smtpPort == 0 ||
+		options.ReportOptions.smtpUsername == "" ||
+		options.ReportOptions.smtpPassword == "" {
+		if len(options.ReportOptions.recipients) > 0 {
 			Log.Warn.Println("Status mail recipients given, but SMTP configuration is incomplete.")
 		} else {
 			Log.Debug.Println("No SMTP configuration given.")
@@ -23,7 +23,7 @@ func SendStatusMail(options *Options) {
 		return
 	}
 
-	Log.Info.Printf("Sending status mail to: %v", options.statusMailOptions.recipients)
+	Log.Info.Printf("Sending status mail to: %v", options.ReportOptions.recipients)
 
 	var logLevel string
 	if fatalBuf.Len() > 0 {
@@ -37,18 +37,18 @@ func SendStatusMail(options *Options) {
 	}
 
 	m := gomail.NewMessage()
-	m.SetHeader("From", options.statusMailOptions.from)
-	m.SetHeader("To", options.statusMailOptions.recipients...)
+	m.SetHeader("From", options.ReportOptions.from)
+	m.SetHeader("To", options.ReportOptions.recipients...)
 	m.SetHeader("Subject", fmt.Sprintf("rotating-rsync-backup [%s]: %s", logLevel, options.profileName))
 	m.SetBody("text/plain", logContent)
 
 	d := gomail.NewDialer(
-		options.statusMailOptions.smtpHost,
-		options.statusMailOptions.smtpPort,
-		options.statusMailOptions.smtpUsername,
-		options.statusMailOptions.smtpPassword,
+		options.ReportOptions.smtpHost,
+		int(options.ReportOptions.smtpPort),
+		options.ReportOptions.smtpUsername,
+		options.ReportOptions.smtpPassword,
 	)
-	if options.statusMailOptions.smtpInsecure {
+	if options.ReportOptions.smtpInsecure {
 		d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
