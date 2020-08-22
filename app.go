@@ -14,9 +14,9 @@ import (
 func main() {
 	defer recovery()
 
-	InitLogger()
-
 	app := &cli.App{
+		Name:  "rotating-rsync-backup",
+		Usage: "Create hardlinked backups using rsync and rotate them",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "profile-name",
@@ -123,9 +123,20 @@ func main() {
 				Usage:    "Skip verification of SMTP server certificates.",
 				Required: false,
 			},
+			&cli.BoolFlag{
+				Name:     "verbose",
+				Aliases:  []string{"v"},
+				Value:    false,
+				Usage:    "Turn on verbose/debug logging.",
+				Required: false,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			var options Options
+
+			options.Verbose = c.Bool("verbose")
+
+			InitLogger(options.Verbose)
 
 			options.profileName = c.String("profile-name")
 

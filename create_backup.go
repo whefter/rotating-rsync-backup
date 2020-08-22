@@ -13,6 +13,8 @@ import (
 // backup name thisBackupName and the relative path lastBackupRelativePath to the last backup
 // to use as hard link destination
 func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePath string) {
+	Log.Info.Printf("Backing up sources: %v", options.sources)
+
 	// Add target, check for existence and create if necessary
 	// Use a temporary folder and rename to an error folder if anything fails. That way, if the script is interrupted
 	// or ends in an error, the temporary/error folders won't crowd out the actual folders during groups/excess deletes.
@@ -44,7 +46,7 @@ func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePat
 	Log.Debug.Printf("createBackup: cmdLine: rsync %s", strings.Join(args, " "))
 
 	// _, _, err := call("printenv", []string{})
-	_, _, err := call("rsync", args)
+	_, _, err := call("rsync", args, "rsync", true)
 	if err != nil {
 		Log.Fatal.Printf("Error executing rsync command: %v", err)
 		Log.Debug.Printf("Renaming progress folder %s to %s", progressTargetPath, errorTargetPath)
@@ -59,7 +61,11 @@ func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePat
 
 	Log.Debug.Printf("Renaming temporary folder %s to %s", progressTargetPath, targetPath)
 	if options.IsRemoteTarget() {
-		_, _, err := sshCall(options, fmt.Sprintf("mv %s %s", shellescape.Quote(progressTargetPath), shellescape.Quote(targetPath)))
+		_, _, err := sshCall(
+			options,
+			fmt.Sprintf("mv %s %s", shellescape.Quote(progressTargetPath), shellescape.Quote(targetPath)),
+			options.Verbose,
+		)
 		if err != nil {
 			panic(fmt.Sprintf("Could not rename remote progress folder %s to final target folder %s", progressTargetPath, targetPath))
 		}

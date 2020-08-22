@@ -18,7 +18,11 @@ func ListBackupsInPath(options *Options, basePath string, absPath string) []stri
 	backups := []string{}
 
 	if options.IsRemoteTarget() {
-		stdout, _, err := sshCall(options, fmt.Sprintf("find %s -type d -maxdepth 1", shellescape.Quote(absPath)))
+		stdout, _, err := sshCall(
+			options,
+			fmt.Sprintf("find %s -type d -maxdepth 1", shellescape.Quote(absPath)),
+			options.Verbose,
+		)
 		if err != nil {
 			panic(fmt.Sprintf("listBackupsInPath: unexpected error while listing remote target folder %s: %v", options.target, err))
 		}
@@ -68,12 +72,23 @@ func ListBackupsInPath(options *Options, basePath string, absPath string) []stri
 
 // PrepareTargetFolder ensures all relevant folders exist at the target location
 func PrepareTargetFolder(options *Options) {
+
 	if options.IsRemoteTarget() {
+		Log.Info.Printf(
+			"Check/prepare target folder: %s on %s@%s:%d",
+			options.target,
+			options.targetUser,
+			options.targetHost,
+			options.targetPort,
+		)
+
 		EnsureRemoteFolderExists(options, options.target)
 		EnsureRemoteFolderExists(options, options.DailyFolderPath())
 		EnsureRemoteFolderExists(options, options.WeeklyFolderPath())
 		EnsureRemoteFolderExists(options, options.MonthlyFolderPath())
 	} else {
+		Log.Info.Printf("Check/prepare target folder: %s", options.target)
+
 		EnsureLocalFolderExists(options, options.target)
 		EnsureLocalFolderExists(options, options.DailyFolderPath())
 		EnsureLocalFolderExists(options, options.WeeklyFolderPath())
@@ -96,7 +111,16 @@ func EnsureRemoteFolderExists(options *Options, absPathOnRemote string) {
 		panic("EnsureRemoteFolderExists: Could not generate notOkUuid for remote target check")
 	}
 
-	stdout, _, err := sshCall(options, fmt.Sprintf("if [ -d %s ]; then echo %s; else echo %s; fi", shellescape.Quote(absPathOnRemote), existsCode.String(), notExistsCode.String()))
+	stdout, _, err := sshCall(
+		options,
+		fmt.Sprintf(
+			"if [ -d %s ]; then echo %s; else echo %s; fi",
+			shellescape.Quote(absPathOnRemote),
+			existsCode.String(),
+			notExistsCode.String(),
+		),
+		options.Verbose,
+	)
 	if err != nil {
 		panic(fmt.Sprintf("EnsureRemoteFolderExists: error checking for remote folder existence: %v", err))
 	} else if stdout[0] == existsCode.String() {
@@ -108,7 +132,11 @@ func EnsureRemoteFolderExists(options *Options, absPathOnRemote string) {
 
 	Log.Debug.Println("EnsureRemoteFolderExists: remote folder does not exist, creating")
 
-	_, _, err = sshCall(options, fmt.Sprintf("mkdir -p -m 0700 %s", shellescape.Quote(absPathOnRemote)))
+	_, _, err = sshCall(
+		options,
+		fmt.Sprintf("mkdir -p -m 0700 %s", shellescape.Quote(absPathOnRemote)),
+		options.Verbose,
+	)
 	if err != nil {
 		panic(fmt.Sprintf("EnsureRemoteFolderExists: unexpected error while creating remote folder %s: %v", absPathOnRemote, err))
 	}

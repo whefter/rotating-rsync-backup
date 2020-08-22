@@ -21,6 +21,7 @@ type Options struct {
 	maxWeekly     uint
 	maxMonthly    uint
 	ReportOptions ReportOptions
+	Verbose       bool
 }
 
 // ReportOptions is the options struct for report mail-related options

@@ -1,30 +1,30 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os/exec"
 )
 
-func sshCall(options *Options, sshCmd string) ([]string, []string, error) {
+func sshCall(options *Options, sshCmd string, verbose bool) ([]string, []string, error) {
 	args := []string{}
 
 	args = append(args, options.SSHOptions()...)
 	args = append(args, options.targetHost)
 	args = append(args, sshCmd)
 
-	return call("ssh", args)
+	return call("ssh", args, "ssh", verbose)
 }
 
-func call(command string, args []string) ([]string, []string, error) {
+func call(command string, args []string, logLabel string, verbose bool) ([]string, []string, error) {
+	if logLabel == "" {
+		logLabel = "exec"
+	}
+
 	Log.Debug.Printf("call: Full command line: %s %v", command, args)
 
 	cmd := exec.Command(command, args...)
-	Log.Debug.Printf("test? %s %v", command, cmd.Args)
-
-	// newCommand := "bash"
-	// newArgs := []string{"-c", shellescape.Quote(command + " " + strings.Join(args, " "))}
-	// Log.Debug.Printf("FOOOOO %s %s", newCommand, strings.Join(newArgs, " "))
-	// cmd := exec.Command(newCommand, newArgs...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -43,8 +43,8 @@ func call(command string, args []string) ([]string, []string, error) {
 	var fullStdout []string
 	var fullStderr []string
 
-	go printStdout(stdout, &fullStdout)
-	go printStderr(stderr, &fullStderr)
+	go handleCallStream("stdout", logLabel, stdout, &fullStdout, verbose)
+	go handleCallStream("stderr", logLabel, stderr, &fullStderr, verbose)
 
 	err = cmd.Wait()
 
@@ -53,8 +53,24 @@ func call(command string, args []string) ([]string, []string, error) {
 	// 	panic(fmt.Sprintf("sshCall: returned with error %v", err))
 	// }
 
-	Log.Debug.Println("call: All stdout lines", fullStdout)
-	Log.Debug.Println("call: All stderr lines", fullStderr)
+	// Log.Debug.Println("call: All stdout lines", fullStdout)
+	// Log.Debug.Println("call: All stderr lines", fullStderr)
 
 	return fullStdout, fullStderr, err
+}
+
+func handleCallStream(streamName string, logLabel string, stdout io.ReadCloser, stash *[]string, verbose bool) {
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := scanner.Text()
+		*stash = append(*stash, line)
+
+		logLine := fmt.Sprintf("[ %s %s ] %s", logLabel, streamName, line)
+		if verbose {
+			Log.Info.Println(logLine)
+		} else {
+			Log.Debug.Println(logLine)
+
+		}
+	}
 }

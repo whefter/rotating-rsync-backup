@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"path/filepath"
 	"sort"
 	"time"
@@ -48,22 +46,4 @@ func BackupNameToTime(backupName string) (time.Time, error) {
 	}
 
 	return iDate, nil
-}
-
-func printStdout(stdout io.ReadCloser, stash *[]string) {
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		line := scanner.Text()
-		*stash = append(*stash, line)
-		Log.Debug.Printf("-- STDOUT --: %s", line)
-	}
-}
-
-func printStderr(stderr io.ReadCloser, stash *[]string) {
-	scanner := bufio.NewScanner(stderr)
-	for scanner.Scan() {
-		line := scanner.Text()
-		*stash = append(*stash, line)
-		Log.Debug.Printf("-- STDERR --: %s", line)
-	}
 }

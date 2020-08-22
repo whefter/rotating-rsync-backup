@@ -13,6 +13,7 @@
             "program": "${fileDirname}",
             "env": {},
             "args": [
+                // "--verbose",
                 "--source",
                 "/go/src/rotating-rsync-backup/dev-source",
                 "--profile-name",
