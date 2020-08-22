@@ -9,6 +9,7 @@ services:
     command: /bin/sh -c "sleep infinity"
     depends_on:
       - dev-target
+      - maildev
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -23,7 +24,8 @@ services:
       dockerfile: Dockerfile.dev-target
       context: .
     volumes:
-      - ../dev-target-ssh:/ssh-keys:ro
+      - ../dev-target-ssh/targetfolder:/target
+      - ../dev-target-ssh/keys:/ssh-keys:ro
     environment:
       - PUID=1000
       - GUID=1000
@@ -33,3 +35,8 @@ services:
       - USER_NAME=rrb
       # - USER_PASSWORD=rrb
       - PUBLIC_KEY_FILE=/ssh-keys/id_ed25519.pub
+
+  maildev:
+    image: maildev/maildev
+    ports:
+      - "50001:80"
