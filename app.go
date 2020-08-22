@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/shlex"
+	"github.com/robfig/cron/v3"
 	"github.com/urfave/cli/v2"
 )
 
@@ -22,6 +23,13 @@ func main() {
 				Name:     "profile-name",
 				Value:    "missing-profile-name",
 				Usage:    "Name for this profile, used in status values.",
+				Required: false,
+			},
+			&cli.StringFlag{
+				Name:     "cron",
+				Aliases:  []string{"c"},
+				Value:    "",
+				Usage:    "Cron expression. When specified, the profile is not run immediately followed by the program exiting. Rather, it is run according to the passed cron schedule.",
 				Required: false,
 			},
 			&cli.StringSliceFlag{
@@ -211,7 +219,39 @@ func main() {
 
 			// TODO Validate user/port
 
-			run(&options)
+			cronExpression := c.String("cron")
+			if cronExpression == "" {
+				run(&options)
+			} else {
+				specParser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+				_, err := specParser.Parse(cronExpression)
+
+				if err != nil {
+					panic(fmt.Sprintf("Invalid cron expression for schedule: %v", err))
+				}
+
+				cronLoggerInternal := log.New(os.Stderr, "cron: ", log.LstdFlags|log.Lmsgprefix)
+
+				cronLogger := cron.PrintfLogger(cronLoggerInternal)
+				c := cron.New(
+					cron.WithParser(specParser),
+					cron.WithLogger(cronLogger),
+					cron.WithChain(
+						cron.Recover(cronLogger),
+						cron.DelayIfStillRunning(cronLogger),
+					),
+				)
+
+				c.AddFunc(cronExpression, func() {
+					Log.Info.Println("Cron tick")
+					run(&options)
+					Log.Reset()
+				})
+				cronLoggerInternal.Printf("Starting cron: %s", cronExpression)
+
+				c.Start()
+				fmt.Println(fmt.Sprintf("Entries: %v", c.Entries()))
+			}
 
 			return nil
 		},
