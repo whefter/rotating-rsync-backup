@@ -102,7 +102,7 @@ func createBackup(options *Options, thisBackupName string, lastBackupRelativePat
 	// Use a temporary folder and rename to an error folder if anything fails. That way, if the script is interrupted
 	// or ends in an error, the temporary/error folders won't crowd out the actual folders during groups/excess deletes.
 	// targetPath := filepath.Join(options.target, thisBackupName)
-	progressTargetPath := filepath.Join(options.target, thisBackupName+"_tmp")
+	progressTargetPath := filepath.Join(options.target, thisBackupName+"_progress")
 	// errorTargetPath := filepath.Join(options.target, thisBackupName+"_error")
 
 	args := []string{"-a", "--delete"}
@@ -110,14 +110,14 @@ func createBackup(options *Options, thisBackupName string, lastBackupRelativePat
 	if lastBackupRelativePath != "" {
 		// --link-dest must be relative to the TARGET FOLDER. It does not take user:host@ before the relative path,
 		// but figures that out itself
-		args = append(args, "--link-dest", shellescape.Quote(lastBackupRelativePath))
+		args = append(args, "--link-dest", lastBackupRelativePath)
 	}
 
 	args = append(args, options.rsyncOptions...)
-	args = append(args, "-e", shellescape.Quote(fmt.Sprintf("ssh %s", strings.Join(getSSHOptions(options), " "))))
+	args = append(args, "-e", fmt.Sprintf("ssh %s", strings.Join(getSSHOptions(options), " ")))
 
 	for _, source := range options.sources {
-		args = append(args, shellescape.Quote(source))
+		args = append(args, source)
 	}
 
 	if isRemoteTarget(options) {
@@ -148,7 +148,7 @@ func getSSHOptions(options *Options) []string {
 	sshOptions := append(options.sshOptions)
 	if isRemoteTarget(options) {
 		if strings.TrimSpace(options.targetUser) != "" {
-			sshOptions = append(sshOptions, "-l", shellescape.Quote(strings.TrimSpace(options.targetUser)))
+			sshOptions = append(sshOptions, "-l", strings.TrimSpace(options.targetUser))
 		}
 
 		if options.targetPort != 22 {
@@ -322,21 +322,22 @@ func sshCall(options *Options, sshCmd string) ([]string, []string, error) {
 	args := []string{}
 
 	args = append(args, getSSHOptions(options)...)
-	args = append(args, shellescape.Quote(options.targetHost))
-	args = append(args, shellescape.Quote(sshCmd))
+	args = append(args, options.targetHost)
+	args = append(args, sshCmd)
 
 	return call("ssh", args)
 }
 
 func call(command string, args []string) ([]string, []string, error) {
 	logDebug.Printf("call: Full command line: %s %v", command, args)
-	// cmd := exec.Command(command, args...)
-	// logDebug.Printf("test? %s %v", command, cmd.Args)
 
-	newCommand := "bash"
-	newArgs := []string{"-c", shellescape.Quote(command + " " + strings.Join(args, " "))}
-	logDebug.Printf("FOOOOO %s %s", newCommand, strings.Join(newArgs, " "))
-	cmd := exec.Command(newCommand, newArgs...)
+	cmd := exec.Command(command, args...)
+	logDebug.Printf("test? %s %v", command, cmd.Args)
+
+	// newCommand := "bash"
+	// newArgs := []string{"-c", shellescape.Quote(command + " " + strings.Join(args, " "))}
+	// logDebug.Printf("FOOOOO %s %s", newCommand, strings.Join(newArgs, " "))
+	// cmd := exec.Command(newCommand, newArgs...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
