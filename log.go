@@ -53,3 +53,7 @@ func (_log *logger) String() string {
 
 	return logContent
 }
+
+func (_log *logger) Reset() {
+	logBuf.Reset()
+}
