@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/google/shlex"
@@ -25,6 +27,12 @@ func main() {
 				Usage:    "Name for this profile, used in status values.",
 				Required: false,
 			},
+			// A note about cron: an alternative would be to leave the scheduled execution to the user
+			// and not implement any cron-related functionality (separation of concerns). However,
+			// this quickly leads to some uid/gid-related issues when building a Docker image around
+			// this utility, because building an Alpine-based image with cron that allows for both
+			// easy and correct handling of uid/gid is not straightforward. Moving the cron feature
+			// to the application means it will always run in the context of the application's uid/gid.
 			&cli.StringFlag{
 				Name:     "cron",
 				Aliases:  []string{"c"},
@@ -197,31 +205,12 @@ func main() {
 			options.ReportOptions.smtpPassword = c.String("report-smtp-password")
 			options.ReportOptions.smtpInsecure = c.Bool("report-smtp-insecure")
 
-			Log.Debug.Println("profileName:", options.profileName)
-			Log.Debug.Println("sources:", options.sources)
-			Log.Debug.Println("target:", options.target)
-			Log.Debug.Println("targetHost:", options.targetHost)
-			Log.Debug.Println("targetUser:", options.targetUser)
-			Log.Debug.Println("targetPort:", options.targetPort)
-			Log.Debug.Println("rsyncOptions:", options.rsyncOptions)
-			Log.Debug.Println("sshOptions:", options.sshOptions)
-			Log.Debug.Println("ReportOptions.recipients:", options.ReportOptions.recipients)
-			Log.Debug.Println("ReportOptions.from:", options.ReportOptions.from)
-			Log.Debug.Println("ReportOptions.smtpHost:", options.ReportOptions.smtpHost)
-			Log.Debug.Println("ReportOptions.smtpPort:", options.ReportOptions.smtpPort)
-			Log.Debug.Println("ReportOptions.smtpUsername:", options.ReportOptions.smtpUsername)
-			Log.Debug.Println("ReportOptions.smtpPassword:", options.ReportOptions.smtpPassword)
-			Log.Debug.Println("ReportOptions.smtpInsecure:", options.ReportOptions.smtpInsecure)
-			Log.Debug.Println("maxMain:", options.maxMain)
-			Log.Debug.Println("maxDaily:", options.maxDaily)
-			Log.Debug.Println("maxWeekly:", options.maxWeekly)
-			Log.Debug.Println("maxMonthly:", options.maxMonthly)
-
 			// TODO Validate user/port
 
 			cronExpression := c.String("cron")
 			if cronExpression == "" {
 				run(&options)
+				SendReportMail(&options)
 			} else {
 				specParser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 				_, err := specParser.Parse(cronExpression)
@@ -230,27 +219,38 @@ func main() {
 					panic(fmt.Sprintf("Invalid cron expression for schedule: %v", err))
 				}
 
-				cronLoggerInternal := log.New(os.Stderr, "cron: ", log.LstdFlags|log.Lmsgprefix)
-
-				cronLogger := cron.PrintfLogger(cronLoggerInternal)
+				cronLogger := cron.PrintfLogger(log.New(os.Stderr, "cron: ", log.LstdFlags|log.Lmsgprefix))
 				c := cron.New(
 					cron.WithParser(specParser),
 					cron.WithLogger(cronLogger),
 					cron.WithChain(
 						cron.Recover(cronLogger),
+						cron.Recover(cron.DiscardLogger),
 						cron.DelayIfStillRunning(cronLogger),
+						cron.DelayIfStillRunning(cron.DiscardLogger),
 					),
 				)
 
-				c.AddFunc(cronExpression, func() {
-					Log.Info.Println("Cron tick")
+				// Make entryID available inside func
+				var entryID cron.EntryID
+				entryID, err = c.AddFunc(cronExpression, func() {
 					run(&options)
+					Log.Info.Printf("Next execution: %s", c.Entry(entryID).Next)
+
+					SendReportMail(&options)
 					Log.Reset()
 				})
-				cronLoggerInternal.Printf("Starting cron: %s", cronExpression)
+				if err != nil {
+					panic(fmt.Sprintf("Error adding cron job: %v", err))
+				}
 
 				c.Start()
-				fmt.Println(fmt.Sprintf("Entries: %v", c.Entries()))
+				fmt.Printf("Started cron: %s, next execution: %s", cronExpression, c.Entry(entryID).Next)
+
+				// Wait indefinitely while listening for SIGINT/SIGTERM
+				exitSignal := make(chan os.Signal)
+				signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
+				<-exitSignal
 			}
 
 			return nil
@@ -264,6 +264,26 @@ func main() {
 }
 
 func run(options *Options) {
+	Log.Debug.Println("profileName:", options.profileName)
+	Log.Debug.Println("sources:", options.sources)
+	Log.Debug.Println("target:", options.target)
+	Log.Debug.Println("targetHost:", options.targetHost)
+	Log.Debug.Println("targetUser:", options.targetUser)
+	Log.Debug.Println("targetPort:", options.targetPort)
+	Log.Debug.Println("rsyncOptions:", options.rsyncOptions)
+	Log.Debug.Println("sshOptions:", options.sshOptions)
+	Log.Debug.Println("ReportOptions.recipients:", options.ReportOptions.recipients)
+	Log.Debug.Println("ReportOptions.from:", options.ReportOptions.from)
+	Log.Debug.Println("ReportOptions.smtpHost:", options.ReportOptions.smtpHost)
+	Log.Debug.Println("ReportOptions.smtpPort:", options.ReportOptions.smtpPort)
+	Log.Debug.Println("ReportOptions.smtpUsername:", options.ReportOptions.smtpUsername)
+	Log.Debug.Println("ReportOptions.smtpPassword:", options.ReportOptions.smtpPassword)
+	Log.Debug.Println("ReportOptions.smtpInsecure:", options.ReportOptions.smtpInsecure)
+	Log.Debug.Println("maxMain:", options.maxMain)
+	Log.Debug.Println("maxDaily:", options.maxDaily)
+	Log.Debug.Println("maxWeekly:", options.maxWeekly)
+	Log.Debug.Println("maxMonthly:", options.maxMonthly)
+
 	Log.Info.Print("Starting up")
 
 	currentTime := time.Now()
@@ -281,8 +301,6 @@ func run(options *Options) {
 
 	CreateBackup(options, thisBackupName, lastBackupRelativePath)
 	RotateBackups(options)
-
-	SendReportMail(options)
 }
 
 func recovery() {
