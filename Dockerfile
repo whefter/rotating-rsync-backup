@@ -1,6 +1,6 @@
 ###
 # Builder
-FROM golang:alpine as BUILDER
+FROM golang:1-alpine as BUILDER
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ RUN go build -o rotating-rsync-backup .
 ###
 # Final image
 FROM alpine:latest
-LABEL maintainer="William Hefter <wh@elehq.de>"
+LABEL maintainer="William Hefter <wh@pwnicorn.de>"
 
 RUN apk add openssh-client rsync
 
