@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# rotating-rsync-backup v2.0.8
+# rotating-rsync-backup v2.0.9
 #
 # Usage: rotating-rsync-backup.pl /path/to/config.conf
 #
@@ -33,7 +33,6 @@ use Date::Parse;
 use Date::Format;
 use Data::Dumper;
 use B qw(svref_2object);
-use Net::Domain qw(hostname hostfqdn hostdomain domainname);
 
 logMsg(">>> rotating-rsync-backup starting up");
 
@@ -73,11 +72,11 @@ while (<CONFIG>) {
     s/\s+$//;               # no trailing white
     next unless length;     # anything left?
     my ($var, $value) = split(/\s*=\s*/, $_, 2);
-    
+
     if ( my @match = $var =~ /^SOURCE(\d+)(_.*)?$/ ) {
         my $index = $match[0];
         my $var   = "SOURCE" . ($match[1] ? $match[1] : '');
-        
+
         if ( !(exists $CONFIG{$var}) ) {
             $CONFIG{$var} = ();
         }
@@ -158,16 +157,16 @@ my $sourceCmdline = "";
 for my $i (0 .. scalar(@{$CONFIG{'SOURCE'}})) {
     my $source = $CONFIG{'SOURCE'}[$i];
     next unless length($source); # Deals with bad indexing by the user
-    
+
     my $host = exists($CONFIG{'SOURCE_HOST'}[$i]) ? $CONFIG{'SOURCE_HOST'}[$i] : undef;
     my $user = exists($CONFIG{'SOURCE_USER'}[$i]) ? $CONFIG{'SOURCE_USER'}[$i] : undef;
-    
+
     if ( $host ) {
         $remoteSources = 1;
     }
-    
+
     my $rsyncSource = ($host ? ($user ? $user . '@' : '') . $host . ':' : '') . $source;
-    
+
     logMsg('Add source folder: ' . $rsyncSource);
     $sourceCmdline .=  " \"$rsyncSource\" ";
 }
@@ -249,7 +248,7 @@ if ($rsyncExitCode) {
         logMsg('WARNING: rsync exited with non-critical non-zero exit code; most likely cause is that some files could not be copied.');
     } else {
         debugOut("Renaming temporary folder $progressTargetFolder to $errorTargetFolder");
-        
+
         if ($remoteTarget) {
             $cmd = $sshCall . " 'mv \"" . $progressTargetFolder . "\" \"" . $errorTargetFolder . "\"'";
             debugOut($cmd);
@@ -262,7 +261,7 @@ if ($rsyncExitCode) {
                 or logMsg("Could not move '$progressTargetFolder' to '$errorTargetFolder'")
                 ;
         }
-        
+
         failQuit('rsync exited with critical exit code.');
     }
 }
@@ -319,22 +318,22 @@ logMsg('');
 sub rotateBackups {
     # Move excess from main to daily according to MAIN_MAX
     moveExcessBackups( $CONFIG{'TARGET'}, $CONFIG{'MAIN_MAX'}, $fullDailyFolder );
-    
+
     # Delete excess in daily (keep oldest from each day), needs no limit
     groupBackups( $CONFIG{'TARGET'} . "/$dailyFolder", \&getBackupDay );
-    
+
     # Move excess from daily to weekly according to DAILY_MAX
     moveExcessBackups( $CONFIG{'TARGET'} . "/$dailyFolder", $CONFIG{'DAILY_MAX'}, $fullWeeklyFolder);
-    
+
     # Delete excess in weekly (keep oldest from each week), needs no limit
     groupBackups( $CONFIG{'TARGET'} . "/$weeklyFolder", \&getBackupWeek );
-    
+
     # Move excess from weekly to monthly according to WEEKLY_MAX
     moveExcessBackups( $CONFIG{'TARGET'} . "/$weeklyFolder", $CONFIG{'WEEKLY_MAX'}, $fullMonthlyFolder);
-    
+
     # Delete excess in monthly (keep oldest from each month), needs no limit
     groupBackups( $CONFIG{'TARGET'} . "/$monthlyFolder", \&getBackupMonth );
-    
+
     # Delete excess from monthly according to MONTHLY_MAX
     moveExcessBackups( $CONFIG{'TARGET'} . "/$monthlyFolder", $CONFIG{'MONTHLY_MAX'}, '' );
 }
@@ -347,7 +346,7 @@ sub rotateBackups {
 sub listBackupsInPath {
     my $path = $_[0];
     my @backupList = ();
-    
+
     # Strip ending slashes
     $path =~ s/\/*$//;
 
@@ -359,7 +358,7 @@ sub listBackupsInPath {
         if ($? >> 8 == 199) {
             return ();
         }
-        
+
         # Only list directories. Use find as the wildcard used with ls will not be expanded unless
         # we spawn a new shell, which results in all kinds of pain with quotes. Don't forget -maxdepth!
         # Use backticks here as system doesn't capture output
@@ -367,17 +366,17 @@ sub listBackupsInPath {
         $cmd = $sshCall . " 'find \"" . $path . "/\" -type d -maxdepth 1'";
         debugOut($cmd);
         my @items = `$cmd`;
-        
+
         # The first result using find is the directory itself, we don't want that.
         shift @items;
-        
+
         foreach (@items) {
             # Remove any ending characters
             chomp;
-            
+
             # Basename and remove ending slash added by ls/find
             $_ =~ s/^.*?\/([^\/]+)\/?$/$1/;
-            
+
             # Is it a backup folder (excludes junk and rotation folders)
             if ( /$backupFormatPattern/ ) {
                 push(@backupList, $_);
@@ -387,7 +386,7 @@ sub listBackupsInPath {
         if (!(-d $path)) {
             return ();
         }
-        
+
         opendir(D, $path);
         my @items = readdir(D);
         closedir(D);
@@ -430,7 +429,7 @@ sub moveExcessBackups {
             # If a target folder has been specified, move excess backups to that folder. If not, delete them
             if ( $target ) {
                 logMsg( "Moving $currentBackup to '$target'" );
-                
+
                 if ( $remoteTarget ) {
                     $cmd = $sshCall . " 'mv \"" . $source . '/' . $currentBackup . "\" \"" . $target . '/' . $currentBackup . "\"'";
                     debugOut($cmd);
@@ -445,7 +444,7 @@ sub moveExcessBackups {
                 }
             } else {
                 logMsg( "Deleting $currentBackup\n" );
-                
+
                 if ( $remoteTarget ) {
                     $cmd = $sshCall . " 'rm -rf \"" . $source . '/' . $currentBackup . "\"'";
                     debugOut($cmd);
@@ -465,7 +464,7 @@ sub moveExcessBackups {
 
 # Group backups in $source so that only one backup remains. The second argument is a reference to
 # the function that returns the second identifier for the backup folder name; e.g. month or year.
-# This can be hugely improved, no doubt, and has edgy cases where it breaks down, no doubt, but 
+# This can be hugely improved, no doubt, and has edgy cases where it breaks down, no doubt, but
 # was quick to implement and works so far.
 #
 # Args:
@@ -478,7 +477,7 @@ sub groupBackups {
 
     my @backupList  = listBackupsInPath($source);
     @backupList     = sort @backupList;
-    
+
     # This works as follows:
     # Walk through the backup list in reverse, e.g. the oldest backup will be on top.
     # Get the backup year, and the second identifier with the passed function reference
@@ -489,7 +488,7 @@ sub groupBackups {
     # our control variables to the current values and repeat.
     my $highYear = 999999;
     my $highNum  = 999999;
- 
+
     foreach my $currentBackup (reverse @backupList) {
         my $currentYear = getBackupYear($currentBackup);
         my $currentNum  = $secondIdentifierCall->($currentBackup);
@@ -502,7 +501,7 @@ sub groupBackups {
                 $highNum  = $currentNum;
             } else {
                 logMsg("Deleting excess backup $currentBackup");
-                
+
                 if ( $remoteTarget ) {
                     $cmd = $sshCall . " 'rm -rf \"" . $source . '/' . $currentBackup . "\"'";
                     debugOut($cmd);
@@ -512,7 +511,7 @@ sub groupBackups {
                     }
                 } else {
                     remove_tree( "$source/$currentBackup", { error => \my $err } );
-                    
+
                     if (@$err) {
                         failQuit("Could not delete excess backup $currentBackup. \nEncountered errors: \n" . parseFileErrorArray($err));
                     }
@@ -524,32 +523,35 @@ sub groupBackups {
 
 sub failQuit {
     my ($msg) = @_;
-    
+
     logMsg($msg);
-    
+
     sendStatusMail("FAILED");
-    
+
     logMsg('');
     logMsg('');
-    
+
     die;
 }
 
 sub sendStatusMail {
     my ($status) = @_;
-    
+
     if ($CONFIG{'STATUS_MAIL_RECIPIENTS'}) {
         # libemail-sender-perl
         use Email::Sender::Simple qw(sendmail);
         use Email::Simple;
         use Email::Simple::Creator;
-        
+
         my $username = $ENV{LOGNAME} || $ENV{USER} || getpwuid($<);
-        
+        my $fqdn = `hostname -f 2>/dev/null`;
+        $fqdn =~ s/\s+//;
+
         my $email = Email::Simple->create(
           header => [
             To      => $CONFIG{'STATUS_MAIL_RECIPIENTS'},
-            From    => $username . '@' . hostfqdn(),
+            # hostfqdn() does some weird non-debuggable things, so use hostname command.
+            From    => $username . '@' . $fqdn,
             Subject => 'rotating-rsync-backup [' . $status . ']: ' . $profileName,
           ],
           body => ""
@@ -558,7 +560,7 @@ sub sendStatusMail {
             . join('', @logMessages)
             ,
         );
-        
+
         sendmail($email);
     }
 }
@@ -654,13 +656,13 @@ sub backupNameToTime {
 sub ensureRemoteFolderExists {
     my ($fullPathOnRemote) = @_;
     my $error = 0;
-    
+
     $cmd = $sshCall . " 'if [ ! -d \"$fullPathOnRemote\" ]; then exit 199; fi'";
     debugOut($cmd);
     system($cmd);
     if ($? >> 8 == 199) {
         logMsg("Creating remote folder: $fullPathOnRemote");
-        
+
         $cmd = $sshCall . " 'mkdir -p \"$fullPathOnRemote\" -m 0700'";
         debugOut($cmd);
         system($cmd);
@@ -670,7 +672,7 @@ sub ensureRemoteFolderExists {
     } elsif ($? >> 8) {
         $error = 1;
     }
-    
+
     if ($error) {
         failQuit("Failed to ensure remote folder existence: $fullPathOnRemote");
     }
@@ -678,12 +680,12 @@ sub ensureRemoteFolderExists {
 
 sub ensureLocalFolderExists {
     my ($fullPath) = @_;
-    
+
     if ( !-d $fullPath ) {
         logMsg("Creating local folder: $fullPath");
-        
+
         make_path($fullPath, { chmod => 0700, error => \my $err });
-        
+
         if (@$err) {
             failQuit("Failed to ensure local folder existence: $fullPath. \nEncountered errors: \n" . parseFileErrorArray($err));
         }
@@ -693,32 +695,32 @@ sub ensureLocalFolderExists {
 sub parseFileErrorArray {
     my ($err) = @_;
     my @errorStrings = ();
-    
+
     for my $diag (@$err) {
         my ($file, $message) = %$diag;
-        
+
         if ($file eq '') {
             push @errorStrings, "General error: $message";
         } else {
             push @errorStrings, "Error processing $file: $message";
         }
     }
-    
+
     return join("\n", @errorStrings);
 }
 
 sub logMsg {
     my ($msg) = @_;
-    
+
     my $fullMsg = time2str('%Y-%m-%d %H-%M-%S', time() ) . ": $msg\n";
-    
+
     push @logMessages, $fullMsg;
     print $fullMsg;
 }
 
 sub debugOut {
     my ($msg) = @_;
-    
+
     if ( $debugEnabled ) {
         logMsg("DEBUG: $msg");
     }
