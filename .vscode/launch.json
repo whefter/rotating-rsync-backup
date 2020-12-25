@@ -14,8 +14,8 @@
             "env": {},
             "args": [
                 "--verbose",
-                "--cron",
-                "* * * * *",
+                // "--cron",
+                // "* * * * *",
                 "--source",
                 "/go/src/rotating-rsync-backup/dev-source",
                 "--profile-name",
@@ -49,11 +49,23 @@
                 "--report-smtp-port",
                 "25",
                 "--report-smtp-username",
-                "user",
+                "",
                 "--report-smtp-password",
-                "password",
+                "",
                 "--report-smtp-insecure",
                 "true"
+            ]
+        },
+        {
+            "name": "Show help",
+            "cwd": "${workspaceFolder}",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${fileDirname}",
+            "env": {},
+            "args": [
+                "--help"
             ]
         }
     ]

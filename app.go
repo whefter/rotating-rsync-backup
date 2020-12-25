@@ -17,12 +17,19 @@ import (
 func main() {
 	defer recovery()
 
+	// Free up "-h"
+	cli.HelpFlag = &cli.BoolFlag{
+		Name:  "help",
+		Usage: "Show help",
+	}
+
 	app := &cli.App{
 		Name:  "rotating-rsync-backup",
 		Usage: "Create hardlinked backups using rsync and rotate them",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "profile-name",
+				Aliases:  []string{"pn", "n"},
 				Value:    "missing-profile-name",
 				Usage:    "Name for this profile, used in status values.",
 				Required: false,
@@ -42,99 +49,117 @@ func main() {
 			},
 			&cli.StringSliceFlag{
 				Name:     "source",
+				Aliases:  []string{"s"},
 				Usage:    "Source path(s) passed to rsync. Specify multiple times for multiple values.",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "target",
+				Aliases:  []string{"t"},
 				Usage:    "Required. Target path. This should be an absolute folder path. For paths on remote hosts, --target-host must be specified. For custom SSH options, such as  target host user/port, pass the -e option to rsync using --rsync-options.",
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "target-host",
+				Aliases:  []string{"th"},
 				Usage:    "Target host",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "target-user",
+				Aliases:  []string{"tu"},
 				Usage:    "Target user",
 				Required: false,
 			},
 			&cli.UintFlag{
 				Name:     "target-port",
+				Aliases:  []string{"tp"},
 				Value:    22,
 				Usage:    "Target port",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "rsync-options",
+				Aliases:  []string{"r"},
 				Value:    "",
 				Usage:    "Extra rsync options. Note that -a and --link-dest are always prepended to these because they are central to how this tool works. -e \"ssh ...\" is also prepended; if you require custom SSH options, pass them in --ssh-options.",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "ssh-options",
+				Aliases:  []string{"S"},
 				Value:    "",
 				Usage:    "Extra ssh options. Used for calls to ssh and in rsync's -e option.",
 				Required: false,
 			},
 			&cli.UintFlag{
 				Name:     "max-main",
+				Aliases:  []string{"mM", "M"},
 				Value:    1,
 				Usage:    "Max number of backups to keep in the main folder (e.g. 10 backups per day)",
 				Required: false,
 			},
 			&cli.UintFlag{
 				Name:     "max-daily",
+				Aliases:  []string{"md", "d"},
 				Value:    7,
 				Usage:    "Max number of backups to keep in the daily folder (after which the oldest are moved to the weekly folder)",
 				Required: false,
 			},
 			&cli.UintFlag{
 				Name:     "max-weekly",
+				Aliases:  []string{"mw", "w"},
 				Value:    52,
 				Usage:    "Max number of backups to keep in the weekly folder (after which the oldest are moved to the monthly folder)",
 				Required: false,
 			},
 			&cli.UintFlag{
 				Name:     "max-monthly",
+				Aliases:  []string{"mm", "m"},
 				Value:    12,
 				Usage:    "Max number of backups to keep in the monthly folder (after which the oldest are *discarded*)",
 				Required: false,
 			},
 			&cli.StringSliceFlag{
 				Name:     "report-recipient",
+				Aliases:  []string{"rr", "R"},
 				Usage:    "Report mail recipients. Specify multiple times for multiple values.",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "report-from",
+				Aliases:  []string{"rf"},
 				Usage:    "Report mail \"From\" header field.",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "report-smtp-host",
+				Aliases:  []string{"rh"},
 				Usage:    "SMTP host to use for sending report mails.",
 				Required: false,
 			},
 			&cli.UintFlag{
 				Name:     "report-smtp-port",
+				Aliases:  []string{"rp"},
 				Value:    587,
 				Usage:    "SMTP port to use for sending report mails.",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "report-smtp-username",
+				Aliases:  []string{"ru"},
 				Usage:    "SMTP username to use for sending report mails.",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "report-smtp-password",
+				Aliases:  []string{"rP"},
 				Usage:    "SMTP password to use for sending report mails.",
 				Required: false,
 			},
 			&cli.BoolFlag{
 				Name:     "report-smtp-insecure",
+				Aliases:  []string{"ri"},
 				Value:    false,
 				Usage:    "Skip verification of SMTP server certificates.",
 				Required: false,
