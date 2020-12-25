@@ -175,7 +175,7 @@ func main() {
 				Name:     "verbose",
 				Aliases:  []string{"v"},
 				Value:    false,
-				Usage:    "Turn on verbose/debug logging.",
+				Usage:    "Turn on verbose/debug logging. IMPORTANT NOTE: might print sensitive data; e.g. the full configuration, including passwords.",
 				Required: false,
 			},
 		},
@@ -309,7 +309,11 @@ func run(options *Options) {
 	Log.Debug.Println("ReportOptions.smtpHost:", options.ReportOptions.smtpHost)
 	Log.Debug.Println("ReportOptions.smtpPort:", options.ReportOptions.smtpPort)
 	Log.Debug.Println("ReportOptions.smtpUsername:", options.ReportOptions.smtpUsername)
-	Log.Debug.Println("ReportOptions.smtpPassword:", options.ReportOptions.smtpPassword)
+	if options.ReportOptions.smtpPassword == "" {
+		Log.Debug.Println("ReportOptions.smtpPassword:", "")
+	} else {
+		Log.Debug.Println("ReportOptions.smtpPassword:", "*****")
+	}
 	Log.Debug.Println("ReportOptions.smtpInsecure:", options.ReportOptions.smtpInsecure)
 	Log.Debug.Println("maxMain:", options.maxMain)
 	Log.Debug.Println("maxDaily:", options.maxDaily)
