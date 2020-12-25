@@ -31,7 +31,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "rotating-rsync-backup",
-		Version: "v3.0.0-beta.5",
+		Version: "v3.0.0",
 		Usage:   "Create hardlinked backups using rsync and rotate them",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -296,6 +296,8 @@ func main() {
 }
 
 func run(options *Options) {
+	defer recovery()
+
 	Log.Debug.Println("profileName:", options.profileName)
 	Log.Debug.Println("sources:", options.sources)
 	Log.Debug.Println("target:", options.target)

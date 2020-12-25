@@ -47,23 +47,28 @@ func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePat
 
 	Log.Debug.Printf("createBackup: cmdLine: rsync %s", strings.Join(args, " "))
 
-	// _, _, err := call("printenv", []string{})
-	_, _, err := call("rsync", args, "rsync", true)
+	// _, _, _, err := call("printenv", []string{})
+	_, _, exitCode, err := call("rsync", args, "rsync", true)
 	if err != nil {
-		Log.Fatal.Printf("Error executing rsync command: %v", err)
-		Log.Debug.Printf("Renaming progress folder %s to %s", progressTargetPath, errorTargetPath)
+		if exitCode == 23 || exitCode == 24 || exitCode == 25 {
+			Log.Warn.Printf("Rsync exited with exit code %v; indicating that some files could not be transfered/deleted.", exitCode)
+		} else {
+			Log.Fatal.Printf("Error executing rsync command: %v", err)
+			Log.Debug.Printf("Renaming progress folder %s to %s", progressTargetPath, errorTargetPath)
 
-		mvErr := os.Rename(progressTargetPath, errorTargetPath)
-		if mvErr != nil {
-			Log.Fatal.Printf("Could not rename progress folder %s to error folder %s", progressTargetPath, errorTargetPath)
+			mvErr := os.Rename(progressTargetPath, errorTargetPath)
+			if mvErr != nil {
+				Log.Fatal.Printf("Could not rename progress folder %s to error folder %s", progressTargetPath, errorTargetPath)
+			}
+
+			panic(fmt.Sprintf("Error executing rsync command: %v", err))
 		}
 
-		panic(fmt.Sprintf("Error executing rsync command: %v", err))
 	}
 
 	Log.Debug.Printf("Renaming temporary folder %s to %s", progressTargetPath, targetPath)
 	if options.IsRemoteTarget() {
-		_, _, err := sshCall(
+		_, _, _, err := sshCall(
 			options,
 			fmt.Sprintf("mv %s %s", shellescape.Quote(progressTargetPath), shellescape.Quote(targetPath)),
 			options.Verbose,

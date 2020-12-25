@@ -30,7 +30,7 @@ func SendReportMail(options *Options) {
 		logLevel = "FATAL"
 	} else if errorBuf.Len() > 0 {
 		logLevel = "ERROR"
-	} else if errorBuf.Len() > 0 {
+	} else if warnBuf.Len() > 0 {
 		logLevel = "WARN"
 	} else {
 		logLevel = "INFO"

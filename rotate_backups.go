@@ -65,7 +65,7 @@ func HandleExcessBackups(options *Options, fromPath string, toPath string, maxFr
 
 				}
 
-				_, _, err := sshCall(options, cmd, options.Verbose)
+				_, _, _, err := sshCall(options, cmd, options.Verbose)
 				if err != nil {
 					panic(fmt.Sprintf("HandleExcessBackups(): Remote: could not execute %s", cmd))
 				}
@@ -166,7 +166,7 @@ func GroupBackups(options *Options, sourcePath string, groupBy backupGroupType) 
 				pathQuoted := shellescape.Quote(fullPath)
 				cmd := fmt.Sprintf("rm -rf %s", pathQuoted)
 
-				_, _, err := sshCall(options, cmd, options.Verbose)
+				_, _, _, err := sshCall(options, cmd, options.Verbose)
 				if err != nil {
 					panic(fmt.Sprintf("groupBackups(): Remote: could not execute %s", cmd))
 				}

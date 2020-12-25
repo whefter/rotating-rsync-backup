@@ -7,7 +7,7 @@ import (
 	"os/exec"
 )
 
-func sshCall(options *Options, sshCmd string, verbose bool) ([]string, []string, error) {
+func sshCall(options *Options, sshCmd string, verbose bool) ([]string, []string, int, error) {
 	args := []string{}
 
 	args = append(args, options.SSHOptions()...)
@@ -17,7 +17,7 @@ func sshCall(options *Options, sshCmd string, verbose bool) ([]string, []string,
 	return call("ssh", args, "ssh", verbose)
 }
 
-func call(command string, args []string, logLabel string, verbose bool) ([]string, []string, error) {
+func call(command string, args []string, logLabel string, verbose bool) ([]string, []string, int, error) {
 	if logLabel == "" {
 		logLabel = "exec"
 	}
@@ -48,6 +48,13 @@ func call(command string, args []string, logLabel string, verbose bool) ([]strin
 
 	err = cmd.Wait()
 
+	exitCode := 0
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode = exitError.ExitCode()
+		}
+	}
+
 	Log.Debug.Printf("call: Command finished with error: %v", err)
 	// if err != nil {
 	// 	panic(fmt.Sprintf("sshCall: returned with error %v", err))
@@ -56,7 +63,7 @@ func call(command string, args []string, logLabel string, verbose bool) ([]strin
 	// Log.Debug.Println("call: All stdout lines", fullStdout)
 	// Log.Debug.Println("call: All stderr lines", fullStderr)
 
-	return fullStdout, fullStderr, err
+	return fullStdout, fullStderr, exitCode, err
 }
 
 func handleCallStream(streamName string, logLabel string, stdout io.ReadCloser, stash *[]string, verbose bool) {

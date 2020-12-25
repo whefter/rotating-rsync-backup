@@ -18,7 +18,7 @@ func ListBackupsInPath(options *Options, basePath string, absPath string) []stri
 	backups := []string{}
 
 	if options.IsRemoteTarget() {
-		stdout, _, err := sshCall(
+		stdout, _, _, err := sshCall(
 			options,
 			fmt.Sprintf("find %s -type d -maxdepth 1", shellescape.Quote(absPath)),
 			options.Verbose,
@@ -111,7 +111,7 @@ func EnsureRemoteFolderExists(options *Options, absPathOnRemote string) {
 		panic("EnsureRemoteFolderExists: Could not generate notOkUuid for remote target check")
 	}
 
-	stdout, _, err := sshCall(
+	stdout, _, _, err := sshCall(
 		options,
 		fmt.Sprintf(
 			"if [ -d %s ]; then echo %s; else echo %s; fi",
@@ -132,7 +132,7 @@ func EnsureRemoteFolderExists(options *Options, absPathOnRemote string) {
 
 	Log.Debug.Println("EnsureRemoteFolderExists: remote folder does not exist, creating")
 
-	_, _, err = sshCall(
+	_, _, _, err = sshCall(
 		options,
 		fmt.Sprintf("mkdir -p -m 0700 %s", shellescape.Quote(absPathOnRemote)),
 		options.Verbose,
