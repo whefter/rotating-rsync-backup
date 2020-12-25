@@ -13,11 +13,9 @@ func SendReportMail(options *Options) {
 	logContent := Log.String()
 
 	if options.ReportOptions.smtpHost == "" ||
-		options.ReportOptions.smtpPort == 0 ||
-		options.ReportOptions.smtpUsername == "" ||
-		options.ReportOptions.smtpPassword == "" {
+		options.ReportOptions.smtpPort == 0 {
 		if len(options.ReportOptions.recipients) > 0 {
-			Log.Warn.Println("Status mail recipients given, but SMTP configuration is incomplete.")
+			Log.Warn.Println("Status mail recipients given, but SMTP configuration is incomplete (host/port missing/invalid).")
 		} else {
 			Log.Debug.Println("No SMTP configuration given.")
 		}
