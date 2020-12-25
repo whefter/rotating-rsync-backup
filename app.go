@@ -22,10 +22,17 @@ func main() {
 		Name:  "help",
 		Usage: "Show help",
 	}
+	// Free up "-v"
+	cli.VersionFlag = &cli.BoolFlag{
+		Name:    "version",
+		Aliases: []string{"V"},
+		Usage:   "print only the version",
+	}
 
 	app := &cli.App{
-		Name:  "rotating-rsync-backup",
-		Usage: "Create hardlinked backups using rsync and rotate them",
+		Name:    "rotating-rsync-backup",
+		Version: "v3.0.0-beta.3",
+		Usage:   "Create hardlinked backups using rsync and rotate them",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "profile-name",
