@@ -323,7 +323,7 @@ func run(options *Options) {
 	Log.Debug.Println("maxWeekly:", options.maxWeekly)
 	Log.Debug.Println("maxMonthly:", options.maxMonthly)
 
-	Log.Info.Print("Starting up")
+	Log.Info.Printf("Starting up: profile %s", options.profileName)
 
 	currentTime := time.Now()
 	thisBackupName := currentTime.Format(BackupFolderTimeFormat)
