@@ -3,7 +3,9 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"os/user"
 
+	"github.com/Showmax/go-fqdn"
 	"gopkg.in/gomail.v2"
 )
 
@@ -23,6 +25,21 @@ func SendReportMail(options *Options) {
 		return
 	}
 
+	var from string
+	if options.ReportOptions.from == "" {
+		user, err := user.Current()
+		if err != nil {
+			panic(fmt.Sprintf("Error obtaining current user (for From: value): %v", err))
+		}
+		fqdn, err := fqdn.FqdnHostname()
+		if err != nil {
+			panic(fmt.Sprintf("Error obtaining FqdnHostname (for From: value): %v", err))
+		}
+		from = fmt.Sprintf("%s@%s", user.Username, fqdn)
+	} else {
+		from = options.ReportOptions.from
+	}
+
 	Log.Info.Printf("Sending report mail to: %v", options.ReportOptions.recipients)
 
 	var logLevel string
@@ -37,7 +54,7 @@ func SendReportMail(options *Options) {
 	}
 
 	m := gomail.NewMessage()
-	m.SetHeader("From", options.ReportOptions.from)
+	m.SetHeader("From", from)
 	m.SetHeader("To", options.ReportOptions.recipients...)
 	m.SetHeader("Subject", fmt.Sprintf("rotating-rsync-backup [%s]: %s", logLevel, options.profileName))
 	m.SetBody("text/plain", logContent)

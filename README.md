@@ -36,8 +36,8 @@ GLOBAL OPTIONS:
    --max-weekly value, --mw value, -w value        Max number of backups to keep in the weekly folder (after which the oldest are moved to the monthly folder) (default: 52)
    --max-monthly value, --mm value, -m value       Max number of backups to keep in the monthly folder (after which the oldest are *discarded*) (default: 12)
    --report-recipient value, --rr value, -R value  Report mail recipients. Specify multiple times for multiple values.
-   --report-from value, --rf value                 Report mail "From" header field.
-   --report-smtp-host value, --rh value            SMTP host to use for sending report mails.
+   --report-from value, --rf value                 Report mail "From" header field. Defaults to <username>@<hostfqdn> - this might not be a valid email address and could throw errors.
+   --report-smtp-host value, --rh value            SMTP host to use for sending report mails. (default: "localhost")
    --report-smtp-port value, --rp value            SMTP port to use for sending report mails. (default: 587)
    --report-smtp-username value, --ru value        SMTP username to use for sending report mails.
    --report-smtp-password value, --rP value        SMTP password to use for sending report mails.

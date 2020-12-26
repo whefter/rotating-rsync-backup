@@ -136,12 +136,13 @@ func main() {
 			&cli.StringFlag{
 				Name:     "report-from",
 				Aliases:  []string{"rf"},
-				Usage:    "Report mail \"From\" header field.",
+				Usage:    "Report mail \"From\" header field. Defaults to <username>@<hostfqdn> - this might not be a valid email address and could throw errors.",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "report-smtp-host",
 				Aliases:  []string{"rh"},
+				Value:    "localhost",
 				Usage:    "SMTP host to use for sending report mails.",
 				Required: false,
 			},
