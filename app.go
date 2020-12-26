@@ -31,7 +31,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "rotating-rsync-backup",
-		Version: "v3.0.1",
+		Version: "v3.0.2",
 		Usage:   "Create hardlinked backups using rsync and rotate them",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
