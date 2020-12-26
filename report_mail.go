@@ -42,16 +42,7 @@ func SendReportMail(options *Options) {
 
 	Log.Info.Printf("Sending report mail to: %v", options.ReportOptions.recipients)
 
-	var logLevel string
-	if fatalBuf.Len() > 0 {
-		logLevel = "FATAL"
-	} else if errorBuf.Len() > 0 {
-		logLevel = "ERROR"
-	} else if warnBuf.Len() > 0 {
-		logLevel = "WARN"
-	} else {
-		logLevel = "INFO"
-	}
+	logLevel := Log.MaxLogLevel()
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", from)

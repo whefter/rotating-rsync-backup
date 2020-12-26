@@ -57,3 +57,18 @@ func (_log *logger) String() string {
 func (_log *logger) Reset() {
 	logBuf.Reset()
 }
+
+func (_log *logger) MaxLogLevel() string {
+	var logLevel string
+	if fatalBuf.Len() > 0 {
+		logLevel = "FATAL"
+	} else if errorBuf.Len() > 0 {
+		logLevel = "ERROR"
+	} else if warnBuf.Len() > 0 {
+		logLevel = "WARN"
+	} else {
+		logLevel = "INFO"
+	}
+
+	return logLevel
+}
