@@ -52,19 +52,50 @@ func (options *Options) SSHOptions() []string {
 	return sshOptions
 }
 
+// TargetPath returns a well-formed target path with trailing slash
+func (options *Options) TargetPath() string {
+	return NormalizeFolderPath(options.target)
+}
+
 // DailyFolderPath Returns the full path to the "daily" folder based on the target path
 func (options *Options) DailyFolderPath() string {
-	return filepath.Join(options.target, DailyFolderName)
+	return NormalizeFolderPath(filepath.Join(options.target, DailyFolderName))
+}
+
+// DailyRelativeFolderPath Returns the relative path to the "daily" folder (relative to target folder)
+func (options *Options) DailyRelativeFolderPath() string {
+	return options.TargetRelativePath(options.DailyFolderPath())
 }
 
 // WeeklyFolderPath Returns the full path to the "weekly" folder based on the target path
 func (options *Options) WeeklyFolderPath() string {
-	return filepath.Join(options.target, WeeklyFolderName)
+	return NormalizeFolderPath(filepath.Join(options.target, WeeklyFolderName))
+}
+
+// WeeklyRelativeFolderPath Returns the relative path to the "weekly" folder (relative to target folder)
+func (options *Options) WeeklyRelativeFolderPath() string {
+	return options.TargetRelativePath(options.WeeklyFolderPath())
 }
 
 // MonthlyFolderPath Returns the full path to the "monthly" folder based on the target path
 func (options *Options) MonthlyFolderPath() string {
-	return filepath.Join(options.target, MonthlyFolderName)
+	return NormalizeFolderPath(filepath.Join(options.target, MonthlyFolderName))
+}
+
+// MonthlyRelativeFolderPath Returns the relative path to the "monthly" folder (relative to target folder)
+func (options *Options) MonthlyRelativeFolderPath() string {
+	return options.TargetRelativePath(options.MonthlyFolderPath())
+}
+
+// TargetRelativePath Returns the relative path from the target path to the passed path
+func (options *Options) TargetRelativePath(fullPath string) string {
+	relPath, err := filepath.Rel(options.TargetPath(), fullPath)
+	if err != nil {
+		panic(err)
+	}
+	// Log.Info.Printf("TargetRelativePath: from %s to %s = %s", options.TargetPath(), fullPath, relPath)
+
+	return NormalizeFolderPath(relPath)
 }
 
 // IsRemoteTarget is a helper function to check if the options indicate the target folder

@@ -19,9 +19,9 @@ func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePat
 	// Add target, check for existence and create if necessary
 	// Use a temporary folder and rename to an error folder if anything fails. That way, if the script is interrupted
 	// or ends in an error, the temporary/error folders won't crowd out the actual folders during groups/excess deletes.
-	targetPath := filepath.Join(options.target, thisBackupName)
-	progressTargetPath := filepath.Join(options.target, thisBackupName+"_progress")
-	errorTargetPath := filepath.Join(options.target, thisBackupName+"_error")
+	targetPath := NormalizeFolderPath(filepath.Join(options.TargetPath(), thisBackupName))
+	progressTargetPath := NormalizeFolderPath(filepath.Join(options.TargetPath(), thisBackupName+"_progress"))
+	errorTargetPath := NormalizeFolderPath(filepath.Join(options.TargetPath(), thisBackupName+"_error"))
 
 	args := []string{"-a", "--delete"}
 
@@ -29,7 +29,7 @@ func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePat
 		// --link-dest must be relative to the TARGET FOLDER, which means the NEWLY created backup folder
 		// (not the "main" folder). Hence the "../".
 		// It does not take user:host@ before the relative path, but figures that out itself
-		args = append(args, "--link-dest", filepath.Join("../", lastBackupRelativePath))
+		args = append(args, "--link-dest", NormalizeFolderPath(filepath.Join("../", lastBackupRelativePath)))
 	}
 
 	args = append(args, options.rsyncOptions...)
@@ -48,7 +48,7 @@ func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePat
 	Log.Debug.Printf("createBackup: cmdLine: rsync %s", strings.Join(args, " "))
 
 	// _, _, _, err := call("printenv", []string{})
-	_, _, exitCode, err := call("rsync", args, "rsync", true)
+	_, _, exitCode, err := call("rsync", args, "rsync", Log.Info)
 	if err != nil {
 		if exitCode == 23 || exitCode == 24 || exitCode == 25 {
 			Log.Warn.Printf("Rsync exited with exit code %v; indicating that some files could not be transfered/deleted.", exitCode)
@@ -71,7 +71,7 @@ func CreateBackup(options *Options, thisBackupName string, lastBackupRelativePat
 		_, _, _, err := sshCall(
 			options,
 			fmt.Sprintf("mv %s %s", shellescape.Quote(progressTargetPath), shellescape.Quote(targetPath)),
-			options.Verbose,
+			Log.Debug,
 		)
 		if err != nil {
 			panic(fmt.Sprintf("Could not rename remote progress folder %s to final target folder %s", progressTargetPath, targetPath))

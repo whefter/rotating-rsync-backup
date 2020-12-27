@@ -35,7 +35,7 @@ func RotateBackups(options *Options) {
 // HandleExcessBackups moves excess - as defined by the "maxFrom" parameter - backups from fromPath
 // to toPath, if toPath is not empty, and deletes them if toPath is empty.
 func HandleExcessBackups(options *Options, fromPath string, toPath string, maxFrom uint) {
-	Log.Info.Printf("> Handling excess backups (> %d) in %s to %s", maxFrom, fromPath, toPath)
+	Log.Info.Printf("> Handling excess backups (> %d) in %s", maxFrom, options.TargetRelativePath(fromPath))
 
 	backupList := ListBackupsInPath(options, fromPath, fromPath)
 	SortBackupList(&backupList, false)
@@ -47,7 +47,7 @@ func HandleExcessBackups(options *Options, fromPath string, toPath string, maxFr
 			if toPath == "" {
 				Log.Info.Printf("Removing %s", currentBackup)
 			} else {
-				Log.Info.Printf("Moving %s to %s", currentBackup, toPath)
+				Log.Info.Printf("Moving %s to %s", currentBackup, options.TargetRelativePath(toPath))
 			}
 
 			currentFrom := filepath.Join(fromPath, currentBackup)
@@ -65,7 +65,7 @@ func HandleExcessBackups(options *Options, fromPath string, toPath string, maxFr
 
 				}
 
-				_, _, _, err := sshCall(options, cmd, options.Verbose)
+				_, _, _, err := sshCall(options, cmd, Log.Debug)
 				if err != nil {
 					panic(fmt.Sprintf("HandleExcessBackups(): Remote: could not execute %s", cmd))
 				}
@@ -73,19 +73,19 @@ func HandleExcessBackups(options *Options, fromPath string, toPath string, maxFr
 				if toPath == "" {
 					err := os.RemoveAll(currentFrom)
 					if err != nil {
-						panic(fmt.Sprintf("HandleExcessBackups(): could not remove %s", currentFrom))
+						panic(fmt.Sprintf("HandleExcessBackups(): could not remove %s", options.TargetRelativePath(currentFrom)))
 					}
 				} else {
 					err := os.Rename(currentFrom, currentTo)
 					if err != nil {
-						panic(fmt.Sprintf("HandleExcessBackups(): could not rename %s to %s", currentFrom, currentTo))
+						panic(fmt.Sprintf("HandleExcessBackups(): could not rename %s to %s", options.TargetRelativePath(currentFrom), options.TargetRelativePath(currentTo)))
 					}
 				}
 
 			}
 		}
 	} else {
-		Log.Debug.Printf("HandleExcessBackups(): no excess backups (< %d) in %s, nothing to do", maxFrom, fromPath)
+		Log.Info.Printf("no excess backups (<= %d) in %s, nothing to do", maxFrom, options.TargetRelativePath(fromPath))
 	}
 }
 
@@ -100,7 +100,7 @@ const (
 // GroupBackups "groups" backups in the passed sourcePath by keeping only the configured amount
 // of most recent backups for the passed backupGroupType
 func GroupBackups(options *Options, sourcePath string, groupBy backupGroupType) {
-	Log.Info.Printf("> Grouping excess backups in %s by %s", sourcePath, groupBy)
+	Log.Info.Printf("> Grouping excess backups in %s by %s", options.TargetRelativePath(sourcePath), groupBy)
 
 	backupList := ListBackupsInPath(options, sourcePath, sourcePath)
 	SortBackupList(&backupList, true)
@@ -162,18 +162,20 @@ func GroupBackups(options *Options, sourcePath string, groupBy backupGroupType) 
 			continue
 		} else {
 			fullPath := filepath.Join(sourcePath, currentBackup)
+			Log.Info.Printf("discarding: %s", currentBackup)
+
 			if options.IsRemoteTarget() {
 				pathQuoted := shellescape.Quote(fullPath)
 				cmd := fmt.Sprintf("rm -rf %s", pathQuoted)
 
-				_, _, _, err := sshCall(options, cmd, options.Verbose)
+				_, _, _, err := sshCall(options, cmd, Log.Debug)
 				if err != nil {
 					panic(fmt.Sprintf("groupBackups(): Remote: could not execute %s", cmd))
 				}
 			} else {
 				err := os.RemoveAll(fullPath)
 				if err != nil {
-					panic(fmt.Sprintf("groupBackups(): could not remove folder %s", fullPath))
+					panic(fmt.Sprintf("groupBackups(): could not remove folder %s", options.TargetRelativePath(fullPath)))
 				}
 			}
 		}

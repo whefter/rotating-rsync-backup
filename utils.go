@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -46,4 +47,15 @@ func BackupNameToTime(backupName string) (time.Time, error) {
 	}
 
 	return iDate, nil
+}
+
+// NormalizeFolderPath ensures a folder path is well-formed and ends with a slash
+func NormalizeFolderPath(dirtyPath string) string {
+	path := filepath.Clean(dirtyPath)
+
+	if !strings.HasSuffix(path, "/") {
+		path = fmt.Sprintf("%v/", path)
+	}
+
+	return path
 }

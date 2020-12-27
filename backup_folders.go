@@ -21,10 +21,10 @@ func ListBackupsInPath(options *Options, basePath string, absPath string) []stri
 		stdout, _, _, err := sshCall(
 			options,
 			fmt.Sprintf("find %s -type d -maxdepth 1", shellescape.Quote(absPath)),
-			options.Verbose,
+			Log.Debug,
 		)
 		if err != nil {
-			panic(fmt.Sprintf("listBackupsInPath: unexpected error while listing remote target folder %s: %v", options.target, err))
+			panic(fmt.Sprintf("listBackupsInPath: unexpected error while listing remote target folder %s: %v", options.TargetPath(), err))
 		}
 
 		for _, folderPath := range stdout {
@@ -44,7 +44,7 @@ func ListBackupsInPath(options *Options, basePath string, absPath string) []stri
 	} else {
 		files, err := ioutil.ReadDir(absPath)
 		if err != nil {
-			panic(fmt.Sprintf("listBackupsInPath: unexpected error while listing local target folder %s: %v", options.target, err))
+			panic(fmt.Sprintf("listBackupsInPath: unexpected error while listing local target folder %s: %v", options.TargetPath(), err))
 		}
 
 		for _, f := range files {
@@ -76,20 +76,20 @@ func PrepareTargetFolder(options *Options) {
 	if options.IsRemoteTarget() {
 		Log.Info.Printf(
 			"Check/prepare target folder: %s on %s@%s:%d",
-			options.target,
+			options.TargetPath(),
 			options.targetUser,
 			options.targetHost,
 			options.targetPort,
 		)
 
-		EnsureRemoteFolderExists(options, options.target)
+		EnsureRemoteFolderExists(options, options.TargetPath())
 		EnsureRemoteFolderExists(options, options.DailyFolderPath())
 		EnsureRemoteFolderExists(options, options.WeeklyFolderPath())
 		EnsureRemoteFolderExists(options, options.MonthlyFolderPath())
 	} else {
-		Log.Info.Printf("Check/prepare target folder: %s", options.target)
+		Log.Info.Printf("Check/prepare target folder: %s", options.TargetPath())
 
-		EnsureLocalFolderExists(options, options.target)
+		EnsureLocalFolderExists(options, options.TargetPath())
 		EnsureLocalFolderExists(options, options.DailyFolderPath())
 		EnsureLocalFolderExists(options, options.WeeklyFolderPath())
 		EnsureLocalFolderExists(options, options.MonthlyFolderPath())
@@ -119,7 +119,7 @@ func EnsureRemoteFolderExists(options *Options, absPathOnRemote string) {
 			existsCode.String(),
 			notExistsCode.String(),
 		),
-		options.Verbose,
+		Log.Debug,
 	)
 	if err != nil {
 		panic(fmt.Sprintf("EnsureRemoteFolderExists: error checking for remote folder existence: %v", err))
@@ -135,7 +135,7 @@ func EnsureRemoteFolderExists(options *Options, absPathOnRemote string) {
 	_, _, _, err = sshCall(
 		options,
 		fmt.Sprintf("mkdir -p -m 0700 %s", shellescape.Quote(absPathOnRemote)),
-		options.Verbose,
+		Log.Debug,
 	)
 	if err != nil {
 		panic(fmt.Sprintf("EnsureRemoteFolderExists: unexpected error while creating remote folder %s: %v", absPathOnRemote, err))
@@ -147,18 +147,18 @@ func EnsureRemoteFolderExists(options *Options, absPathOnRemote string) {
 func EnsureLocalFolderExists(options *Options, absPath string) {
 	Log.Debug.Printf("EnsureLocalFolderExists(%s)", absPath)
 
-	if stat, err := os.Stat(options.target); err == nil {
+	if stat, err := os.Stat(absPath); err == nil {
 		Log.Debug.Printf("EnsureLocalFolderExists: target %s exists", absPath)
 
-		if !stat.IsDir() {
-			panic(fmt.Sprintf("EnsureLocalFolderExists: %s is not a folder", absPath))
-		} else {
+		if stat.IsDir() {
 			Log.Debug.Printf("EnsureLocalFolderExists: %s is a folder, as expected", absPath)
 			return
+		} else {
+			panic(fmt.Sprintf("EnsureLocalFolderExists: %s is not a folder", absPath))
 		}
 	} else if os.IsNotExist(err) {
 		Log.Debug.Printf("EnsureLocalFolderExists: %s does not exist, creating", absPath)
-		err := os.MkdirAll(options.target, 0700)
+		err := os.MkdirAll(absPath, 0700)
 
 		if err != nil {
 			panic(fmt.Sprintf("EnsureLocalFolderExists: %s does not exist and could not be created", absPath))
@@ -173,10 +173,10 @@ func EnsureLocalFolderExists(options *Options, absPath string) {
 func DetermineLastBackup(options *Options) string {
 	var backups []string
 
-	backups = append(backups, ListBackupsInPath(options, options.target, options.target)...)
-	backups = append(backups, ListBackupsInPath(options, options.target, filepath.Join(options.target, DailyFolderName))...)
-	backups = append(backups, ListBackupsInPath(options, options.target, filepath.Join(options.target, WeeklyFolderName))...)
-	backups = append(backups, ListBackupsInPath(options, options.target, filepath.Join(options.target, MonthlyFolderName))...)
+	backups = append(backups, ListBackupsInPath(options, options.TargetPath(), options.TargetPath())...)
+	backups = append(backups, ListBackupsInPath(options, options.TargetPath(), options.DailyFolderPath())...)
+	backups = append(backups, ListBackupsInPath(options, options.TargetPath(), options.WeeklyFolderPath())...)
+	backups = append(backups, ListBackupsInPath(options, options.TargetPath(), options.MonthlyFolderPath())...)
 
 	if len(backups) > 0 {
 		// sort.Strings(backups)

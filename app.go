@@ -301,7 +301,7 @@ func run(options *Options) {
 
 	Log.Debug.Println("profileName:", options.profileName)
 	Log.Debug.Println("sources:", options.sources)
-	Log.Debug.Println("target:", options.target)
+	Log.Debug.Println("target:", options.TargetPath())
 	Log.Debug.Println("targetHost:", options.targetHost)
 	Log.Debug.Println("targetUser:", options.targetUser)
 	Log.Debug.Println("targetPort:", options.targetPort)

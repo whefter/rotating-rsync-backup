@@ -4,20 +4,21 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"os/exec"
 )
 
-func sshCall(options *Options, sshCmd string, verbose bool) ([]string, []string, int, error) {
+func sshCall(options *Options, sshCmd string, logger *log.Logger) ([]string, []string, int, error) {
 	args := []string{}
 
 	args = append(args, options.SSHOptions()...)
 	args = append(args, options.targetHost)
 	args = append(args, sshCmd)
 
-	return call("ssh", args, "ssh", verbose)
+	return call("ssh", args, "ssh", logger)
 }
 
-func call(command string, args []string, logLabel string, verbose bool) ([]string, []string, int, error) {
+func call(command string, args []string, logLabel string, logger *log.Logger) ([]string, []string, int, error) {
 	if logLabel == "" {
 		logLabel = "exec"
 	}
@@ -43,8 +44,8 @@ func call(command string, args []string, logLabel string, verbose bool) ([]strin
 	var fullStdout []string
 	var fullStderr []string
 
-	go handleCallStream("stdout", logLabel, stdout, &fullStdout, verbose)
-	go handleCallStream("stderr", logLabel, stderr, &fullStderr, verbose)
+	go handleCallStream("stdout", logLabel, stdout, &fullStdout, logger)
+	go handleCallStream("stderr", logLabel, stderr, &fullStderr, logger)
 
 	err = cmd.Wait()
 
@@ -66,18 +67,13 @@ func call(command string, args []string, logLabel string, verbose bool) ([]strin
 	return fullStdout, fullStderr, exitCode, err
 }
 
-func handleCallStream(streamName string, logLabel string, stdout io.ReadCloser, stash *[]string, verbose bool) {
+func handleCallStream(streamName string, logLabel string, stdout io.ReadCloser, stash *[]string, logger *log.Logger) {
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		line := scanner.Text()
 		*stash = append(*stash, line)
 
 		logLine := fmt.Sprintf("[ %s %s ] %s", logLabel, streamName, line)
-		if verbose {
-			Log.Info.Println(logLine)
-		} else {
-			Log.Debug.Println(logLine)
-
-		}
+		logger.Println(logLine)
 	}
 }
