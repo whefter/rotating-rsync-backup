@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -194,17 +193,18 @@ func main() {
 			if len(options.sources) == 0 {
 				panic("No sources specified")
 			}
-			for _, source := range options.sources {
-				var invalidSource bool
-				if !filepath.IsAbs(source) {
-					invalidSource = true
-					Log.Fatal.Printf("Source must be absolute: %s", source)
-				}
+			// TODO Check if source validation can be reimplemented while taking care of remote sources
+			// for _, source := range options.sources {
+			// 	var invalidSource bool
+			// 	if !filepath.IsAbs(source) {
+			// 		invalidSource = true
+			// 		Log.Fatal.Printf("Source must be absolute: %s", source)
+			// 	}
 
-				if invalidSource {
-					panic("Invalid sources")
-				}
-			}
+			// 	if invalidSource {
+			// 		panic("Invalid sources")
+			// 	}
+			// }
 
 			options.target = c.String("target")
 			options.targetHost = c.String("target-host")
