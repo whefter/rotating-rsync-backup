@@ -16,7 +16,7 @@ USAGE:
    rotating-rsync-backup [global options] command [command options] [arguments...]
 
 VERSION:
-   v3.0.2
+   v3.0.3
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
