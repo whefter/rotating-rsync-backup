@@ -16,14 +16,14 @@ USAGE:
    rotating-rsync-backup [global options] command [command options] [arguments...]
 
 VERSION:
-   v3.0.4
+   v3.0.5
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
    --profile-name value, --pn value, -n value      Name for this profile, used in status values. (default: "missing-profile-name")
-   --cron value, -c value                          Cron expression. When specified, the profile is not run immediately followed by the program exiting. Rather, it is run according to the passed cron schedule.
+   --cron value, -c value                          Cron expression. When specified, the profile is not run immediately followed by the program exiting. Rather, it is run according to the passed cron schedule. Prefix with CRON_TZ= to set a timezone. Full documentation: https://pkg.go.dev/github.com/robfig/cron
    --source value, -s value                        Source path(s) passed to rsync. Specify multiple times for multiple values.
    --target value, -t value                        Required. Target path. This should be an absolute folder path. For paths on remote hosts, --target-host must be specified. For custom SSH options, such as  target host user/port, pass the -e option to rsync using --rsync-options.
    --target-host value, --th value                 Target host

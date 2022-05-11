@@ -30,7 +30,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "rotating-rsync-backup",
-		Version: "v3.0.4",
+		Version: "v3.0.5",
 		Usage:   "Create hardlinked backups using rsync and rotate them",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -50,7 +50,7 @@ func main() {
 				Name:     "cron",
 				Aliases:  []string{"c"},
 				Value:    "",
-				Usage:    "Cron expression. When specified, the profile is not run immediately followed by the program exiting. Rather, it is run according to the passed cron schedule.",
+				Usage:    "Cron expression. When specified, the profile is not run immediately followed by the program exiting. Rather, it is run according to the passed cron schedule. Prefix with CRON_TZ= to set a timezone. Full documentation: https://pkg.go.dev/github.com/robfig/cron",
 				Required: false,
 			},
 			&cli.StringSliceFlag{

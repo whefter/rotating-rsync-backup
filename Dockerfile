@@ -15,7 +15,7 @@ RUN go build -o rotating-rsync-backup .
 FROM alpine:latest
 LABEL maintainer="William Hefter <wh@pwnicorn.de>"
 
-RUN apk add openssh-client rsync
+RUN apk add openssh-client rsync tzdata
 
 WORKDIR /app
 
