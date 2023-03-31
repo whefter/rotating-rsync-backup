@@ -27,7 +27,7 @@ jobs:
           go mod download
       - name: Build
         run: |
-          go build -v -o rotating-rsync-backup-linux-amd64 .
+          CGO_ENABLED=0 go build -v -o rotating-rsync-backup-linux-amd64 .
           ls -alh
       - name: create release
         uses: ncipollo/release-action@v1
