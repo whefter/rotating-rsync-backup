@@ -1,11 +1,11 @@
-name: scheduled build & push of latest version
+name: scheduled build & push of latest version as Docker image
 
 on:
   schedule:
     - cron: '0 3 * * 0'
 
 jobs:
-  build:
+  build-docker-scheduled:
     runs-on: ubuntu-latest
     name: build and publish Docker image
     steps:

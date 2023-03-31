@@ -1,4 +1,4 @@
-name: publish
+name: docker-publish
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  build-docker:
     runs-on: ubuntu-latest
     name: build and publish Docker image
     steps:
