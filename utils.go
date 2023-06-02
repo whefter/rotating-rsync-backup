@@ -59,3 +59,16 @@ func NormalizeFolderPath(dirtyPath string) string {
 
 	return path
 }
+
+// DetermineNewestBackupInFolder fetches all backup folder names in the target path and determines the most
+// most recent one, returning its relative path relative to the target folder
+func DetermineNewestBackupInFolder(options *Options, targetPath string) string {
+	backups := ListBackupsInPath(options, targetPath, targetPath)
+
+	if len(backups) > 0 {
+		SortBackupList(&backups, false)
+		return backups[len(backups)-1]
+	}
+
+	return ""
+}

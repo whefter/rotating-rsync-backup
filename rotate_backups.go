@@ -13,11 +13,17 @@ func RotateBackups(options *Options) {
 	// Move excess from main to daily according to MAIN_MAX
 	HandleExcessBackups(options, options.target, options.DailyFolderPath(), options.maxMain)
 
+	// Create __latest symlink in main
+	CreateLatestSymlink(options, options.target)
+
 	// Delete excess in daily (keep oldest from each day), needs no limit
 	GroupBackups(options, options.DailyFolderPath(), backupGroupTypeDay)
 
 	// Move excess from daily to weekly according to DAILY_MAX
 	HandleExcessBackups(options, options.DailyFolderPath(), options.WeeklyFolderPath(), options.maxDaily)
+
+	// Create __latest symlink in daily
+	CreateLatestSymlink(options, options.DailyFolderPath())
 
 	// Delete excess in weekly (keep oldest from each week), needs no limit
 	GroupBackups(options, options.WeeklyFolderPath(), backupGroupTypeWeek)
@@ -25,11 +31,17 @@ func RotateBackups(options *Options) {
 	// Move excess from weekly to monthly according to WEEKLY_MAX
 	HandleExcessBackups(options, options.WeeklyFolderPath(), options.MonthlyFolderPath(), options.maxWeekly)
 
+	// Create __latest symlink in weekly
+	CreateLatestSymlink(options, options.WeeklyFolderPath())
+
 	// Delete excess in monthly (keep oldest from each month), needs no limit
 	GroupBackups(options, options.MonthlyFolderPath(), backupGroupTypeMonth)
 
 	// Delete excess from monthly according to MONTHLY_MAX
 	HandleExcessBackups(options, options.MonthlyFolderPath(), "", options.maxMonthly)
+
+	// Create __latest symlink in monthly
+	CreateLatestSymlink(options, options.MonthlyFolderPath())
 }
 
 // HandleExcessBackups moves excess - as defined by the "maxFrom" parameter - backups from fromPath
@@ -178,6 +190,81 @@ func GroupBackups(options *Options, sourcePath string, groupBy backupGroupType) 
 					panic(fmt.Sprintf("groupBackups(): could not remove folder %s", options.TargetRelativePath(fullPath)))
 				}
 			}
+		}
+	}
+}
+
+func CreateLatestSymlink(options *Options, targetPath string) {
+	Log.Info.Printf("Creating symlink to latest backup in %s\n", targetPath)
+
+	latestBackupFolder := DetermineNewestBackupInFolder(options, targetPath)
+
+	targetPath = NormalizeFolderPath(targetPath)
+
+	// Path to new symlink
+	symlinkPath := filepath.Join(targetPath, "__latest")
+
+	// Delete the existing symlink or dummy directory if it exists
+	if options.IsRemoteTarget() {
+		_, _, _, err := sshCall(
+			options,
+			fmt.Sprintf("if [ -L %s ] || [ -d %s ]; then rm -rf %s; fi", shellescape.Quote(symlinkPath), shellescape.Quote(symlinkPath), shellescape.Quote(symlinkPath)),
+			Log.Debug,
+		)
+		if err != nil {
+			Log.Error.Printf("Failed to remove symlink or directory at %s: %v\n", symlinkPath, err)
+			return
+		}
+	} else {
+		if _, err := os.Lstat(symlinkPath); err == nil {
+			if err := os.RemoveAll(symlinkPath); err != nil {
+				Log.Error.Printf("Failed to remove symlink or directory at %s: %v\n", symlinkPath, err)
+				return
+			}
+		}
+	}
+
+	// If no backups were found
+	if latestBackupFolder == "" {
+		Log.Info.Println("No backups found. Creating directory instead of symlink.")
+		if options.IsRemoteTarget() {
+			_, _, _, err := sshCall(
+				options,
+				fmt.Sprintf("mkdir -p %s", shellescape.Quote(symlinkPath)),
+				Log.Debug,
+			)
+			if err != nil {
+				Log.Error.Printf("Failed to create directory at %s: %v\n", symlinkPath, err)
+				return
+			}
+		} else {
+			err := os.MkdirAll(symlinkPath, 0755)
+			if err != nil {
+				Log.Error.Printf("Could not create directory at %s: %v\n", symlinkPath, err)
+				return
+			}
+		}
+		return
+	}
+
+	latestBackupFolder = NormalizeFolderPath(latestBackupFolder)
+
+	// Create a new symlink
+	if options.IsRemoteTarget() {
+		_, _, _, err := sshCall(
+			options,
+			fmt.Sprintf("ln -s %s %s", shellescape.Quote(latestBackupFolder), shellescape.Quote(symlinkPath)),
+			Log.Debug,
+		)
+		if err != nil {
+			Log.Error.Printf("Failed to create symlink at %s: %v\n", symlinkPath, err)
+			return
+		}
+	} else {
+		err := os.Symlink(latestBackupFolder, symlinkPath)
+		if err != nil {
+			Log.Error.Printf("Could not create symlink at %s: %v\n", symlinkPath, err)
+			return
 		}
 	}
 }
