@@ -126,6 +126,12 @@ func main() {
 				Usage:    "Max number of backups to keep in the monthly folder (after which the oldest are *discarded*)",
 				Required: false,
 			},
+			&cli.BoolFlag{
+				Name:     "report-disabled",
+				Aliases:  []string{"rd"},
+				Usage:    "Disable sending of report email after backup",
+				Required: false,
+			},
 			&cli.StringSliceFlag{
 				Name:     "report-recipient",
 				Aliases:  []string{"rr", "R"},
@@ -230,6 +236,7 @@ func main() {
 			options.maxWeekly = c.Uint("max-weekly")
 			options.maxMonthly = c.Uint("max-monthly")
 
+			options.ReportOptions.enabled = !c.Bool("report-disabled")
 			options.ReportOptions.recipients = c.StringSlice("report-recipient")
 			options.ReportOptions.from = c.String("report-from")
 			options.ReportOptions.smtpHost = c.String("report-smtp-host")
@@ -243,7 +250,9 @@ func main() {
 			cronExpression := c.String("cron")
 			if cronExpression == "" {
 				run(&options)
-				SendReportMail(&options)
+				if options.ReportOptions.enabled {
+					SendReportMail(&options)
+				}
 			} else {
 				specParser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 				_, err := specParser.Parse(cronExpression)
@@ -270,7 +279,9 @@ func main() {
 					run(&options)
 					Log.Info.Printf("Next execution: %s", c.Entry(entryID).Next)
 
-					SendReportMail(&options)
+					if options.ReportOptions.enabled {
+						SendReportMail(&options)
+					}
 					Log.Reset()
 				})
 				if err != nil {
@@ -307,6 +318,7 @@ func run(options *Options) {
 	Log.Debug.Println("targetPort:", options.targetPort)
 	Log.Debug.Println("rsyncOptions:", options.rsyncOptions)
 	Log.Debug.Println("sshOptions:", options.sshOptions)
+	Log.Debug.Println("ReportOptions.enabled:", options.ReportOptions.enabled)
 	Log.Debug.Println("ReportOptions.recipients:", options.ReportOptions.recipients)
 	Log.Debug.Println("ReportOptions.from:", options.ReportOptions.from)
 	Log.Debug.Println("ReportOptions.smtpHost:", options.ReportOptions.smtpHost)

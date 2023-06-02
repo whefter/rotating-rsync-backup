@@ -26,6 +26,7 @@ type Options struct {
 
 // ReportOptions is the options struct for report mail-related options
 type ReportOptions struct {
+	enabled      bool
 	recipients   []string
 	from         string
 	smtpHost     string
